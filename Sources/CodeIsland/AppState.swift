@@ -26,6 +26,14 @@ final class AppState {
         return nil
     }
 
+    /// Events that prove a pending permission/question was resolved externally
+    /// (e.g. user approved in terminal). PreToolUse and subagent events are excluded
+    /// because they can race with PermissionRequest arrivals.
+    private static let clearsWaiting: Set<String> = [
+        "PostToolUse", "PostToolUseFailure", "PermissionDenied",
+        "UserPromptSubmit", "Stop",
+    ]
+
     private var maxHistory: Int { SettingsManager.shared.maxToolHistory }
     private var cleanupTimer: Timer?
     private var autoCollapseTask: Task<Void, Never>?
@@ -417,18 +425,14 @@ final class AppState {
             sessions[sessionId]?.model = model
         }
 
-        // If session was waiting but received an activity event, the question/permission
-        // was answered externally (e.g. user replied in terminal). Clear pending items.
+        // Permission/question was answered externally (e.g. user replied in terminal).
         if wasWaiting {
-            let en = event.eventName
-            // Events that should NOT clear waiting state
-            let keepWaiting: Set<String> = ["Notification", "SessionStart", "SessionEnd", "PreCompact"]
-            if !keepWaiting.contains(en) {
+            if Self.clearsWaiting.contains(event.eventName) {
                 drainPermissions(forSession: sessionId)
                 drainQuestions(forSession: sessionId)
                 if sessions[sessionId]?.status == .waitingApproval
                     || sessions[sessionId]?.status == .waitingQuestion {
-                    sessions[sessionId]?.status = (en == "Stop") ? .idle : .processing
+                    sessions[sessionId]?.status = (event.eventName == "Stop") ? .idle : .processing
                     sessions[sessionId]?.currentTool = nil
                     sessions[sessionId]?.toolDescription = nil
                 }
