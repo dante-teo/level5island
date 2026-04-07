@@ -1,5 +1,5 @@
 import SwiftUI
-import CodeIslandCore
+import Level5IslandCore
 
 // MARK: - Phosphor Terminal Palette
 
@@ -8,8 +8,6 @@ private enum Phosphor {
     static let borderHover   = Color.white.opacity(0.18)
     static let warningAmber  = Color(red: 1.0, green: 0.7, blue: 0.28)
     static let questionCyan  = Color(red: 0.4, green: 0.7, blue: 1.0)
-    static let planBlue      = Color(red: 0.6, green: 0.8, blue: 1.0)
-    static let planAccent    = Color(red: 0.4, green: 0.6, blue: 1.0)
 }
 
 private extension AnyTransition {
@@ -163,20 +161,6 @@ struct NotchPanelView: View {
                             )
                             .transition(.cardReveal)
                         }
-                    case .planNotification(let sid, let title, let filePath):
-                        PlanNotificationBar(
-                            title: title,
-                            filePath: filePath,
-                            onGoToTerminal: {
-                                if let session = appState.sessions[sid] {
-                                    TerminalActivator.activate(session: session, sessionId: sid)
-                                }
-                                withAnimation(NotchAnimation.close) {
-                                    appState.surface = .collapsed
-                                }
-                            }
-                        )
-                        .transition(.cardReveal)
                     case .completionCard:
                         SessionListView(appState: appState, onlySessionId: appState.justCompletedSessionId)
                             .transition(.listReveal)
@@ -227,7 +211,7 @@ struct NotchPanelView: View {
                     return
                 }
                 switch appState.surface {
-                case .approvalCard, .questionCard, .planNotification: return
+                case .approvalCard, .questionCard: return
                 case .completionCard:
                     // Completion card: mark entered on hover-in, block collapse until entered
                     if hovering {
@@ -660,60 +644,6 @@ private struct IdleIndicatorBar: View {
 }
 
 // MARK: - Approval Bar (below notch, auto-expanded)
-
-private struct PlanNotificationBar: View {
-    let title: String
-    let filePath: String?
-    let onGoToTerminal: () -> Void
-
-    var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Text("*")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Phosphor.planBlue)
-                Text(L10n.shared["plan_review"])
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Phosphor.planBlue)
-                Spacer()
-            }
-            .padding(.horizontal, 14)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(title)
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.85))
-                    .lineLimit(2)
-                if let path = filePath {
-                    Text(path)
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.35))
-                        .lineLimit(1)
-                        .truncationMode(.head)
-                }
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white.opacity(0.04))
-
-            PixelButton(
-                label: L10n.shared["go_to_terminal"],
-                fg: .white.opacity(0.95),
-                bg: Color(red: 0.14, green: 0.28, blue: 0.52),
-                border: Color(red: 0.28, green: 0.48, blue: 0.82),
-                action: onGoToTerminal
-            )
-            .padding(.horizontal, 14)
-        }
-        .padding(.vertical, 10)
-        .overlay(alignment: .top) {
-            Phosphor.planAccent.opacity(0.35)
-                .frame(height: 1)
-                .blur(radius: 2)
-        }
-    }
-}
 
 private struct ApprovalBar: View {
     let tool: String

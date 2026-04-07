@@ -68,7 +68,7 @@ final class L10n: ObservableObject {
         "shortcut_recording": "Recording…",
         "shortcut_none": "Not Set",
         "shortcut_togglePanel": "Toggle Panel",
-        "shortcut_togglePanel_desc": "Open or close the CodeIsland panel",
+        "shortcut_togglePanel_desc": "Open or close the Level5Island panel",
         "shortcut_approve": "Approve",
         "shortcut_approve_desc": "Approve current permission request",
         "shortcut_approveAlways": "Approve Always",
@@ -132,7 +132,7 @@ final class L10n: ObservableObject {
         "tool_or_api_error": "Tool failure or API error",
         "system_section": "System",
         "boot_sound": "Boot Sound",
-        "boot_sound_desc": "Play a jingle when CodeIsland starts",
+        "boot_sound_desc": "Play a jingle when Level5Island starts",
         "interaction": "Interaction",
         "approval_needed": "Approval Needed",
         "waiting_approval_desc": "Waiting for permission approval or answer",
@@ -156,7 +156,7 @@ final class L10n: ObservableObject {
         "about_desc2": "Supports 8 CLI/IDE tools via Unix socket IPC",
 
         // Window
-        "settings_title": "CodeIsland Settings",
+        "settings_title": "Level5Island Settings",
 
         // Menu
         "settings_ellipsis": "Settings...",
@@ -167,11 +167,11 @@ final class L10n: ObservableObject {
 
         // Update
         "update_available_title": "Update Available",
-        "update_available_body": "CodeIsland %@ is available (current: %@). Would you like to download it?",
+        "update_available_body": "Level5Island %@ is available (current: %@). Would you like to download it?",
         "download_update": "Download",
         "later": "Later",
         "no_update_title": "Up to Date",
-        "no_update_body": "CodeIsland %@ is the latest version.",
+        "no_update_body": "Level5Island %@ is the latest version.",
         "ok": "OK",
         "update_now": "Update Now",
         "update_downloading": "Downloading update...",
@@ -179,7 +179,7 @@ final class L10n: ObservableObject {
         "update_failed_body": "Could not install the update: %@",
         "update_manual_download": "Download Manually",
         "update_homebrew_title": "Update Available",
-        "update_homebrew_body": "CodeIsland %@ is available. Since you installed via Homebrew, please run:",
+        "update_homebrew_body": "Level5Island %@ is available. Since you installed via Homebrew, please run:",
         "update_homebrew_command": "brew upgrade level5island",
         "update_copy_command": "Copy Command",
 
@@ -191,8 +191,6 @@ final class L10n: ObservableObject {
         "allow_once": "ALLOW ONCE",
         "always": "ALWAYS",
         "approve": "APPROVE",
-        "plan_review": "Plan Review",
-        "go_to_terminal": "GO TO TERMINAL",
         "type_answer": "Type your answer...",
         "skip": "SKIP",
         "submit": "SUBMIT",
@@ -248,7 +246,7 @@ final class L10n: ObservableObject {
         "shortcut_recording": "请按下快捷键…",
         "shortcut_none": "未设置",
         "shortcut_togglePanel": "切换面板",
-        "shortcut_togglePanel_desc": "展开或收起 CodeIsland 面板",
+        "shortcut_togglePanel_desc": "展开或收起 Level5Island 面板",
         "shortcut_approve": "批准",
         "shortcut_approve_desc": "批准当前权限请求",
         "shortcut_approveAlways": "始终批准",
@@ -312,7 +310,7 @@ final class L10n: ObservableObject {
         "tool_or_api_error": "工具失败或 API 错误",
         "system_section": "系统",
         "boot_sound": "启动音效",
-        "boot_sound_desc": "CodeIsland 启动时播放提示音",
+        "boot_sound_desc": "Level5Island 启动时播放提示音",
         "interaction": "交互",
         "approval_needed": "需要审批",
         "waiting_approval_desc": "等待权限审批或回答问题",
@@ -336,7 +334,7 @@ final class L10n: ObservableObject {
         "about_desc2": "通过 Unix socket IPC 支持 8 种 CLI/IDE 工具",
 
         // Window
-        "settings_title": "CodeIsland 设置",
+        "settings_title": "Level5Island 设置",
 
         // Menu
         "settings_ellipsis": "设置...",
@@ -347,11 +345,11 @@ final class L10n: ObservableObject {
 
         // Update
         "update_available_title": "发现新版本",
-        "update_available_body": "CodeIsland %@ 已发布（当前版本：%@），是否前往下载？",
+        "update_available_body": "Level5Island %@ 已发布（当前版本：%@），是否前往下载？",
         "download_update": "前往下载",
         "later": "稍后",
         "no_update_title": "已是最新版本",
-        "no_update_body": "CodeIsland %@ 已是最新版本。",
+        "no_update_body": "Level5Island %@ 已是最新版本。",
         "ok": "好",
         "update_now": "立即更新",
         "update_downloading": "正在下载更新...",
@@ -359,7 +357,7 @@ final class L10n: ObservableObject {
         "update_failed_body": "无法安装更新：%@",
         "update_manual_download": "手动下载",
         "update_homebrew_title": "发现新版本",
-        "update_homebrew_body": "CodeIsland %@ 已发布。由于您通过 Homebrew 安装，请运行：",
+        "update_homebrew_body": "Level5Island %@ 已发布。由于您通过 Homebrew 安装，请运行：",
         "update_homebrew_command": "brew upgrade level5island",
         "update_copy_command": "复制命令",
 
@@ -371,8 +369,6 @@ final class L10n: ObservableObject {
         "allow_once": "允许一次",
         "always": "始终允许",
         "approve": "批准",
-        "plan_review": "计划审核",
-        "go_to_terminal": "前往终端",
         "type_answer": "输入回答…",
         "skip": "跳过",
         "submit": "提交",

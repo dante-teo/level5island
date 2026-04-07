@@ -194,7 +194,7 @@ final class UpdateChecker: ObservableObject {
         defer { isDownloading = false }
 
         let tempDir = NSTemporaryDirectory()
-        let dmgPath = tempDir + "CodeIsland-update.dmg"
+        let dmgPath = tempDir + "Level5Island-update.dmg"
         let mountPoint = "/tmp/level5island-update-mount"
 
         do {
@@ -211,7 +211,7 @@ final class UpdateChecker: ObservableObject {
             )
             Self.log.debug("hdiutil attach output: \(attachOutput)")
 
-            // 3. Find CodeIsland.app in mounted volume
+            // 3. Find Level5Island.app in mounted volume
             let fm = FileManager.default
             guard let contents = try? fm.contentsOfDirectory(atPath: mountPoint),
                   let appName = contents.first(where: { $0.hasSuffix(".app") }) else {

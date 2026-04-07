@@ -1,5 +1,5 @@
 import SwiftUI
-import CodeIslandCore
+import Level5IslandCore
 
 /// Clawd — Claude mascot, adapted from clawd-on-desk SVG pixel art.
 /// Renders SVG rects proportionally via Canvas + TimelineView animations.

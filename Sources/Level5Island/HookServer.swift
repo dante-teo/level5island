@@ -1,7 +1,7 @@
 import Foundation
 import Network
 import os.log
-import CodeIslandCore
+import Level5IslandCore
 
 private let log = Logger(subsystem: Log.subsystem, category: "HookServer")
 
@@ -117,14 +117,6 @@ class HookServer {
         if event.eventName == "PermissionRequest" {
             let sessionId = event.sessionId ?? "default"
 
-            // ExitPlanMode: auto-approve and show notification card (user reviews in terminal)
-            if event.toolName == "ExitPlanMode" {
-                let response = #"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}"#
-                sendResponse(connection: connection, data: Data(response.utf8))
-                appState.handlePlanNotification(event)
-                return
-            }
-
             // Auto-approve safe internal tools without showing UI
             if let toolName = event.toolName, Self.autoApproveTools.contains(toolName) {
                 let response = #"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}"#
@@ -181,7 +173,7 @@ class HookServer {
     ///
     /// Previously this used `connection.receive(min:1, max:1)` which triggered on EOF.
     /// But the bridge always does `shutdown(SHUT_WR)` after sending the request (see
-    /// CodeIslandBridge/main.swift), which produces an immediate EOF on the read side.
+    /// Level5IslandBridge/main.swift), which produces an immediate EOF on the read side.
     /// That caused every PermissionRequest to be auto-drained as `deny` before the UI
     /// card was even visible. We now rely on `stateUpdateHandler` transitioning to
     /// `cancelled`/`failed` — which only happens on real socket teardown, not half-close.

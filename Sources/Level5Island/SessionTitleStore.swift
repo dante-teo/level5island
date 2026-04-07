@@ -1,5 +1,5 @@
 import Foundation
-import CodeIslandCore
+import Level5IslandCore
 
 struct ResolvedSessionTitle: Sendable, Equatable {
     let title: String

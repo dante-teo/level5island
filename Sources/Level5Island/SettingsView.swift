@@ -1,5 +1,5 @@
 import SwiftUI
-import CodeIslandCore
+import Level5IslandCore
 
 // MARK: - Navigation Model
 
@@ -49,7 +49,7 @@ private struct SidebarGroup: Hashable {
 
 private let sidebarGroups: [SidebarGroup] = [
     SidebarGroup(title: nil, pages: [.general, .behavior, .appearance, .mascots, .sound, .shortcuts]),
-    SidebarGroup(title: "CodeIsland", pages: [.hooks, .about]),
+    SidebarGroup(title: "Level5Island", pages: [.hooks, .about]),
 ]
 
 // MARK: - Main View
@@ -729,7 +729,7 @@ private struct AboutPage: View {
                 AppLogoView(size: 100)
 
                 VStack(spacing: 6) {
-                    Text("CodeIsland")
+                    Text("Level5Island")
                         .font(.system(size: 26, weight: .bold))
                     Text("Version \(AppVersion.current)")
                         .font(.system(size: 13))

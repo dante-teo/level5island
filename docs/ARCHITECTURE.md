@@ -4,7 +4,7 @@
 
 ```
 ┌─────────────────┐     ┌─────────────────────┐     ┌──────────────────┐
-│  AI CLI Tool     │────▶│  level5island-bridge  │────▶│  CodeIsland.app  │
+│  AI CLI Tool     │────▶│  level5island-bridge  │────▶│  Level5Island.app  │
 │  (hook trigger)  │     │  (native binary)     │     │  (HookServer)    │
 └─────────────────┘     └─────────────────────┘     └──────────────────┘
                               │                            │
@@ -14,7 +14,7 @@
 
 ## Targets
 
-### CodeIslandCore (Library)
+### Level5IslandCore (Library)
 Pure business logic with no UI or system dependencies beyond Foundation.
 
 - **SessionSnapshot** — Core state model. Contains all session data: status, tool history, subagents, terminal info, chat messages. The `reduceEvent()` method is the single entry point for all state mutations.
@@ -22,7 +22,7 @@ Pure business logic with no UI or system dependencies beyond Foundation.
 - **EventNormalizer** — Maps tool-specific event names to canonical names. Each CLI tool uses a different hook format (claude, nested, flat, copilot), and this normalizer unifies them.
 - **ChatMessageTextFormatter** — Formats chat messages for compact display
 
-### CodeIsland (App)
+### Level5Island (App)
 SwiftUI application layer. Observable state, UI, system integration.
 
 **State & Lifecycle:**
@@ -56,7 +56,7 @@ Lightweight (~86KB) native binary invoked by CLI tool hooks.
 1. Reads JSON event from stdin
 2. Detects terminal environment (bundle ID, TERM_PROGRAM, tty, tmux, iTerm session)
 3. Enriches the event with terminal metadata
-4. Sends enriched JSON over Unix socket to CodeIsland.app
+4. Sends enriched JSON over Unix socket to Level5Island.app
 
 ## Data Flow (Unidirectional)
 

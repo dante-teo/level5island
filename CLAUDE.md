@@ -4,17 +4,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CodeIsland is a native macOS menu bar app (Swift/SwiftUI) that displays real-time status of Claude Code sessions in the MacBook notch. It connects via Unix socket IPC (`/tmp/level5island-<uid>.sock`) to receive hook events from Claude Code.
+Level5Island is a native macOS menu bar app (Swift/SwiftUI) that displays real-time status of Claude Code sessions in the MacBook notch. It connects via Unix socket IPC (`/tmp/level5island-<uid>.sock`) to receive hook events from Claude Code.
 
 ## Build & Run
 
 ```bash
 # Debug build + launch
-swift build && open .build/debug/CodeIsland.app
+swift build && open .build/debug/Level5Island.app
 
 # Release (universal binary: ARM64 + x86_64)
 ./build.sh
-open .build/release/CodeIsland.app
+open .build/release/Level5Island.app
 
 # Run tests
 swift test
@@ -34,9 +34,9 @@ No external dependencies — uses only SPM with system frameworks (SwiftUI, AppK
 
 | Target | Type | Path | Purpose |
 |--------|------|------|---------|
-| `CodeIslandCore` | Library | `Sources/CodeIslandCore/` | Pure business logic: models, state reduction, event normalization |
-| `CodeIsland` | Executable | `Sources/CodeIsland/` | App layer: UI, window management, settings, hook installation |
-| `level5island-bridge` | Executable | `Sources/CodeIslandBridge/` | Native CLI hook binary (~86KB): terminal detection, socket forwarding |
+| `Level5IslandCore` | Library | `Sources/Level5IslandCore/` | Pure business logic: models, state reduction, event normalization |
+| `Level5Island` | Executable | `Sources/Level5Island/` | App layer: UI, window management, settings, hook installation |
+| `level5island-bridge` | Executable | `Sources/Level5IslandBridge/` | Native CLI hook binary (~86KB): terminal detection, socket forwarding |
 
 **Data flow** (unidirectional, Redux-like):
 ```
@@ -69,4 +69,4 @@ AI Tool hook → level5island-bridge → Unix socket → HookServer
 - Logging via `os.log` with subsystem `com.level5island`
 - Bundle ID: `com.level5island` (see `Info.plist`)
 - App icon compiled from `Assets.xcassets` + `AppIcon.icon` via `xcrun actool`
-- Resources (sounds) in `Sources/CodeIsland/Resources/`
+- Resources (sounds) in `Sources/Level5Island/Resources/`

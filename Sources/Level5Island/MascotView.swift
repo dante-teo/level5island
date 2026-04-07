@@ -1,5 +1,5 @@
 import SwiftUI
-import CodeIslandCore
+import Level5IslandCore
 
 // MARK: - Mascot Animation Speed Environment
 

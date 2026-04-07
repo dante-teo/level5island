@@ -2,35 +2,35 @@
 import PackageDescription
 
 let package = Package(
-    name: "CodeIsland",
+    name: "Level5Island",
     platforms: [.macOS(.v14)],
     targets: [
         .target(
-            name: "CodeIslandCore",
-            path: "Sources/CodeIslandCore"
+            name: "Level5IslandCore",
+            path: "Sources/Level5IslandCore"
         ),
         .executableTarget(
-            name: "CodeIsland",
-            dependencies: ["CodeIslandCore"],
-            path: "Sources/CodeIsland",
+            name: "Level5Island",
+            dependencies: ["Level5IslandCore"],
+            path: "Sources/Level5Island",
             resources: [
                 .copy("Resources")
             ]
         ),
         .executableTarget(
             name: "level5island-bridge",
-            dependencies: ["CodeIslandCore"],
-            path: "Sources/CodeIslandBridge"
+            dependencies: ["Level5IslandCore"],
+            path: "Sources/Level5IslandBridge"
         ),
         .testTarget(
-            name: "CodeIslandCoreTests",
-            dependencies: ["CodeIslandCore"],
-            path: "Tests/CodeIslandCoreTests"
+            name: "Level5IslandCoreTests",
+            dependencies: ["Level5IslandCore"],
+            path: "Tests/Level5IslandCoreTests"
         ),
         .testTarget(
-            name: "CodeIslandTests",
-            dependencies: ["CodeIsland"],
-            path: "Tests/CodeIslandTests"
+            name: "Level5IslandTests",
+            dependencies: ["Level5Island"],
+            path: "Tests/Level5IslandTests"
         ),
     ]
 )

@@ -1,5 +1,5 @@
 import XCTest
-@testable import CodeIslandCore
+@testable import Level5IslandCore
 
 final class DerivedSessionStateTests: XCTestCase {
     func testAllIdleSessionsUseMostRecentlyActiveSource() {

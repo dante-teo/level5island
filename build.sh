@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-APP_NAME="CodeIsland"
+APP_NAME="Level5Island"
 BUILD_DIR=".build/release"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
 ICON_CATALOG="Assets.xcassets"

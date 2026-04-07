@@ -1,8 +1,8 @@
 # Product Overview
 
-## What is CodeIsland?
+## What is Level5Island?
 
-CodeIsland is a macOS menu bar application that lives in the MacBook notch area and provides real-time status monitoring for AI coding agents. It eliminates the need to switch windows to check if an agent is waiting for approval, has finished a task, or needs input.
+Level5Island is a macOS menu bar application that lives in the MacBook notch area and provides real-time status monitoring for AI coding agents. It eliminates the need to switch windows to check if an agent is waiting for approval, has finished a task, or needs input.
 
 ## Core Value Proposition
 
@@ -36,7 +36,7 @@ Each session shows: agent status (idle/processing/running/waiting), current tool
 Tab-level terminal detection — notifications are only suppressed when the user is actively viewing the specific terminal tab for that session, not just the terminal app.
 
 ### Auto Hook Install
-On launch, CodeIsland detects installed AI CLI tools and configures hooks automatically. Includes auto-repair and version tracking so hooks stay current across CLI upgrades.
+On launch, Level5Island detects installed AI CLI tools and configures hooks automatically. Includes auto-repair and version tracking so hooks stay current across CLI upgrades.
 
 ### Sound Effects
 Optional 8-bit sound notifications for session events (start, stop, approval needed, etc.).
@@ -58,7 +58,7 @@ English and Simplified Chinese, auto-detected from system language.
 
 - **Homebrew**: `brew tap dante-teo/tap && brew install --cask level5island`
 - **Manual**: DMG download from GitHub Releases
-- **Source**: `swift build && open .build/debug/CodeIsland.app`
+- **Source**: `swift build && open .build/debug/Level5Island.app`
 
 ## Requirements
 

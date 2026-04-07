@@ -1,5 +1,5 @@
 import Foundation
-import CodeIslandCore
+import Level5IslandCore
 
 struct PermissionRequest {
     let event: HookEvent

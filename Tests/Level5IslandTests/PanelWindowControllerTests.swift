@@ -1,6 +1,6 @@
 import AppKit
 import XCTest
-@testable import CodeIsland
+@testable import Level5Island
 
 final class PanelWindowControllerTests: XCTestCase {
     func testScreenHopMotionUsesMoreVisibleTiming() {

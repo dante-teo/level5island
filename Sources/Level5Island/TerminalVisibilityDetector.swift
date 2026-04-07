@@ -1,5 +1,5 @@
 import AppKit
-import CodeIslandCore
+import Level5IslandCore
 
 /// Detects whether a session's terminal tab/pane is currently the active (visible) one.
 /// Used by smart-suppress to avoid notifying when the user is already looking at the session.

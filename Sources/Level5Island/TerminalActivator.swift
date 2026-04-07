@@ -1,5 +1,5 @@
 import AppKit
-import CodeIslandCore
+import Level5IslandCore
 
 /// Activates the terminal window/tab running a specific Claude Code session.
 /// Supports tab-level switching for: Ghostty, iTerm2, Terminal.app, WezTerm, kitty.

@@ -2,7 +2,7 @@
 
 ## Visual Identity
 
-CodeIsland uses a pixel-art aesthetic with 8-bit inspired visuals throughout:
+Level5Island uses a pixel-art aesthetic with 8-bit inspired visuals throughout:
 - Each of the 9 AI tools has a unique animated pixel-art mascot
 - Sound effects are 8-bit WAV files
 - The panel uses a compact, information-dense layout suited to the notch area

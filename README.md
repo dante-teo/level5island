@@ -1,6 +1,6 @@
 <h1 align="center">
-  <img src="logo.png" width="48" height="48" alt="CodeIsland Logo" valign="middle">&nbsp;
-  CodeIsland
+  <img src="logo.png" width="48" height="48" alt="Level5Island Logo" valign="middle">&nbsp;
+  Level5Island
 </h1>
 <p align="center">
   <b>Real-time AI coding agent status panel for macOS Dynamic Island (Notch)</b><br>
@@ -14,12 +14,12 @@
 ---
 
 <p align="center">
-  <img src="docs/images/notch-panel.png" width="700" alt="CodeIsland Panel Preview">
+  <img src="docs/images/notch-panel.png" width="700" alt="Level5Island Panel Preview">
 </p>
 
-## What is CodeIsland?
+## What is Level5Island?
 
-CodeIsland lives in your MacBook's notch area and shows you what Claude Code is doing — in real time. No more switching windows to check if Claude is waiting for approval or if a task just finished.
+Level5Island lives in your MacBook's notch area and shows you what Claude Code is doing — in real time. No more switching windows to check if Claude is waiting for approval or if a task just finished.
 
 It connects to **Claude Code** via Unix socket IPC, displaying session status, tool calls, permission requests, and more — all in a compact, pixel-art styled panel.
 
@@ -54,9 +54,9 @@ brew install --cask level5island
 ### Manual Download
 
 1. Go to [Releases](https://github.com/dante-teo/level5island/releases)
-2. Download `CodeIsland.dmg`
-3. Open the DMG and drag `CodeIsland.app` to your Applications folder
-4. Launch CodeIsland — it will automatically install the Claude Code hook
+2. Download `Level5Island.dmg`
+3. Open the DMG and drag `Level5Island.app` to your Applications folder
+4. Launch Level5Island — it will automatically install the Claude Code hook
 
 > **Note:** On first launch, macOS may show a security warning. Go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
@@ -66,14 +66,14 @@ Requires **macOS 14+** and **Swift 5.9+**.
 
 ```bash
 git clone https://github.com/dante-teo/level5island.git
-cd CodeIsland
+cd Level5Island
 
 # Development (debug build + launch)
-swift build && open .build/debug/CodeIsland.app
+swift build && open .build/debug/Level5Island.app
 
 # Release (universal binary: Apple Silicon + Intel)
 ./build.sh
-open .build/release/CodeIsland.app
+open .build/release/Level5Island.app
 ```
 
 ## How It Works
@@ -82,15 +82,15 @@ open .build/release/CodeIsland.app
 Claude Code hook event
   → level5island-bridge (native Swift binary, ~86KB)
     → Unix socket → /tmp/level5island-<uid>.sock
-      → CodeIsland app receives event
+      → Level5Island app receives event
         → Updates UI in real time
 ```
 
-CodeIsland installs a lightweight hook into Claude Code's config. When Claude triggers an event (session start, tool call, permission request, etc.), the hook sends a JSON message through a Unix socket. CodeIsland listens on this socket and updates the notch panel instantly.
+Level5Island installs a lightweight hook into Claude Code's config. When Claude triggers an event (session start, tool call, permission request, etc.), the hook sends a JSON message through a Unix socket. Level5Island listens on this socket and updates the notch panel instantly.
 
 ## Settings
 
-CodeIsland provides a 7-tab settings panel:
+Level5Island provides a 7-tab settings panel:
 
 - **General** — Language, launch at login, display selection
 - **Behavior** — Auto-hide, smart suppress, session cleanup

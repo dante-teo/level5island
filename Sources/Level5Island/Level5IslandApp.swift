@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct CodeIslandApp: App {
+struct Level5IslandApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @ObservedObject private var l10n = L10n.shared
 

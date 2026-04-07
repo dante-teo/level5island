@@ -28,15 +28,15 @@ jobs:
       - name: Compute SHA256
         id: sha
         run: |
-          SHA=$(shasum -a 256 .build/CodeIsland.dmg | awk '{print $1}')
+          SHA=$(shasum -a 256 .build/Level5Island.dmg | awk '{print $1}')
           echo "SHA256=$SHA" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          name: CodeIsland v${{ steps.version.outputs.VERSION }}
+          name: Level5Island v${{ steps.version.outputs.VERSION }}
           body: |
-            ## CodeIsland v${{ steps.version.outputs.VERSION }}
+            ## Level5Island v${{ steps.version.outputs.VERSION }}
 
             ### Install via Homebrew
             ```bash
@@ -45,10 +45,10 @@ jobs:
             ```
 
             ### Manual Install
-            Download `CodeIsland.dmg` below, open it, and drag CodeIsland to Applications.
+            Download `Level5Island.dmg` below, open it, and drag Level5Island to Applications.
 
-            > **Note:** This app is not notarized. Run `xattr -cr /Applications/CodeIsland.app` if macOS blocks it.
-          files: .build/CodeIsland.dmg
+            > **Note:** This app is not notarized. Run `xattr -cr /Applications/Level5Island.app` if macOS blocks it.
+          files: .build/Level5Island.dmg
           draft: false
           prerelease: false
 

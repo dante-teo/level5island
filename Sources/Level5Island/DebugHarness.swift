@@ -1,10 +1,10 @@
 import SwiftUI
-import CodeIslandCore
+import Level5IslandCore
 
 // MARK: - Preview Scenario System
 //
 // Usage: launch with --preview <scenario> to inject mock sessions for UI development.
-//   e.g.  .build/debug/CodeIsland --preview approval
+//   e.g.  .build/debug/Level5Island --preview approval
 //
 // Scenarios:
 //   working     — single session actively running tools

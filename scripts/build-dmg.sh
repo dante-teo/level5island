@@ -14,11 +14,11 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD_DIR="$REPO_ROOT/.build"
 RELEASE_DIR="$BUILD_DIR/release"
 STAGING_DIR="$BUILD_DIR/dmg-staging"
-APP_DIR="$STAGING_DIR/CodeIsland.app"
+APP_DIR="$STAGING_DIR/Level5Island.app"
 CONTENTS_DIR="$APP_DIR/Contents"
-OUTPUT_DMG="$BUILD_DIR/CodeIsland.dmg"
+OUTPUT_DMG="$BUILD_DIR/Level5Island.dmg"
 
-echo "==> Building CodeIsland ${VERSION} (universal)"
+echo "==> Building Level5Island ${VERSION} (universal)"
 
 # Build for both architectures
 cd "$REPO_ROOT"
@@ -37,8 +37,8 @@ mkdir -p "$CONTENTS_DIR/Helpers"
 mkdir -p "$CONTENTS_DIR/Resources"
 
 # Create universal binaries
-lipo -create "$ARM_DIR/CodeIsland" "$X86_DIR/CodeIsland" \
-     -output "$CONTENTS_DIR/MacOS/CodeIsland"
+lipo -create "$ARM_DIR/Level5Island" "$X86_DIR/Level5Island" \
+     -output "$CONTENTS_DIR/MacOS/Level5Island"
 lipo -create "$ARM_DIR/level5island-bridge" "$X86_DIR/level5island-bridge" \
      -output "$CONTENTS_DIR/Helpers/level5island-bridge"
 
@@ -75,7 +75,7 @@ echo "==> App bundle assembled at $APP_DIR"
 # Without Developer ID signing + notarization, macOS Gatekeeper will block
 # apps downloaded from the internet ("damaged" / "unidentified developer").
 #
-# Workaround for users: run  xattr -cr /Applications/CodeIsland.app
+# Workaround for users: run  xattr -cr /Applications/Level5Island.app
 # Or install via Homebrew:  brew install dante-teo/tap/level5island
 #
 # To enable signing, uncomment below and set your credentials:
@@ -84,7 +84,7 @@ echo "==> App bundle assembled at $APP_DIR"
 # SIGNING_IDENTITY="Developer ID Application: Your Name (${TEAM_ID})"
 #
 # codesign --deep --force --options runtime \
-#     --entitlements "$REPO_ROOT/CodeIsland.entitlements" \
+#     --entitlements "$REPO_ROOT/Level5Island.entitlements" \
 #     --sign "$SIGNING_IDENTITY" \
 #     "$APP_DIR"
 # ---------------------------------------------------------------------------
@@ -95,12 +95,12 @@ echo "==> Creating DMG"
 rm -f "$OUTPUT_DMG"
 
 create-dmg \
-    --volname "CodeIsland ${VERSION}" \
+    --volname "Level5Island ${VERSION}" \
     --window-pos 200 120 \
     --window-size 600 400 \
     --icon-size 100 \
-    --icon "CodeIsland.app" 175 190 \
-    --hide-extension "CodeIsland.app" \
+    --icon "Level5Island.app" 175 190 \
+    --hide-extension "Level5Island.app" \
     --app-drop-link 425 190 \
     "$OUTPUT_DMG" \
     "$STAGING_DIR/"
