@@ -286,7 +286,7 @@ struct NotchPanelView: View {
 // MARK: - Compact Wings (notch-level, 32px height)
 
 /// Left side: pixel character + status info
-private struct CompactLeftWing: View {
+@MainActor private struct CompactLeftWing: View {
     var appState: AppState
     let expanded: Bool
     let mascotSize: CGFloat
@@ -466,7 +466,7 @@ private func toolStatusColor(_ tool: String) -> Color {
 
 /// Shows the current tool activity in the center of the bar on non-notch screens.
 /// Keeps the last tool visible for a short linger period to avoid flashing.
-private struct CompactToolStatus: View {
+@MainActor private struct CompactToolStatus: View {
     var appState: AppState
 
     /// Single source of truth: all fields derive from the same session.
@@ -654,6 +654,8 @@ private struct ApprovalBar: View {
     let onAlwaysAllow: () -> Void
     let onDeny: () -> Void
 
+    private var isExitPlanMode: Bool { tool == "ExitPlanMode" }
+
     private var fileName: String? {
         guard let fp = toolInput?["file_path"] as? String else { return nil }
         return (fp as NSString).lastPathComponent
@@ -667,59 +669,114 @@ private struct ApprovalBar: View {
         toolInput?["server_name"] as? String
     }
 
+    private var planTitle: String {
+        guard let plan = toolInput?["plan"] as? String else { return L10n.shared["plan_review"] }
+        for line in plan.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = line.drop(while: { $0 == " " || $0 == "\t" })
+            if trimmed.hasPrefix("#") {
+                return String(trimmed.drop(while: { $0 == "#" || $0 == " " }).prefix(60))
+            }
+        }
+        return L10n.shared["plan_review"]
+    }
+
+    private var planFilePath: String? {
+        toolInput?["planFilePath"] as? String
+    }
+
+    @ViewBuilder
+    private var queueBadge: some View {
+        if queueTotal > 1 {
+            Text("\(queuePosition)/\(queueTotal)")
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.5))
+                .padding(.horizontal, 4)
+                .padding(.vertical, 1)
+                .background(Color.white.opacity(0.1))
+                .clipShape(RoundedRectangle(cornerRadius: 3))
+        }
+    }
+
     var body: some View {
         VStack(spacing: 8) {
-            // Tool name + file context
-            HStack(spacing: 6) {
-                Text("!")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color(red: 1.0, green: 0.7, blue: 0.28))
-                Text(tool)
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(Color(red: 1.0, green: 0.7, blue: 0.28))
-                if let server = serverName {
-                    Text("(\(server))")
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(Color(red: 0.6, green: 0.7, blue: 0.9))
+            if isExitPlanMode {
+                HStack(spacing: 6) {
+                    Text("*")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Color(red: 0.6, green: 0.8, blue: 1.0))
+                    Text(L10n.shared["plan_review"])
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Color(red: 0.6, green: 0.8, blue: 1.0))
+                    queueBadge
+                    Spacer()
                 }
-                if let name = fileName {
-                    Text(name)
-                        .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.6))
-                }
-                if queueTotal > 1 {
-                    Text("\(queuePosition)/\(queueTotal)")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.5))
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(Color.white.opacity(0.1))
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 14)
+                .padding(.horizontal, 14)
 
-            // Tool-specific detail view
-            if toolInput != nil {
-                toolDetailView
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 6)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.white.opacity(0.04))
-            }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(planTitle)
+                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .lineLimit(2)
+                    if let path = planFilePath {
+                        Text(path)
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.35))
+                            .lineLimit(1)
+                            .truncationMode(.head)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white.opacity(0.04))
 
-            // Pixel-style buttons
-            HStack(spacing: 6) {
-                PixelButton(label: L10n.shared["deny"], fg: .white.opacity(0.95), bg: Color(red: 0.45, green: 0.12, blue: 0.12), border: Color(red: 0.7, green: 0.25, blue: 0.25), action: onDeny)
-                PixelButton(label: L10n.shared["allow_once"], fg: .white.opacity(0.95), bg: Color(red: 0.16, green: 0.38, blue: 0.18), border: Color(red: 0.28, green: 0.62, blue: 0.32), action: onAllow)
-                PixelButton(label: L10n.shared["always"], fg: .white.opacity(0.95), bg: Color(red: 0.14, green: 0.28, blue: 0.52), border: Color(red: 0.28, green: 0.48, blue: 0.82), action: onAlwaysAllow)
+                HStack(spacing: 6) {
+                    PixelButton(label: L10n.shared["deny"], fg: .white.opacity(0.95), bg: Color(red: 0.45, green: 0.12, blue: 0.12), border: Color(red: 0.7, green: 0.25, blue: 0.25), action: onDeny)
+                    PixelButton(label: L10n.shared["approve"], fg: .white.opacity(0.95), bg: Color(red: 0.16, green: 0.38, blue: 0.18), border: Color(red: 0.28, green: 0.62, blue: 0.32), action: onAllow)
+                }
+                .padding(.horizontal, 14)
+            } else {
+                HStack(spacing: 6) {
+                    Text("!")
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Color(red: 1.0, green: 0.7, blue: 0.28))
+                    Text(tool)
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(Color(red: 1.0, green: 0.7, blue: 0.28))
+                    if let server = serverName {
+                        Text("(\(server))")
+                            .font(.system(size: 9, design: .monospaced))
+                            .foregroundStyle(Color(red: 0.6, green: 0.7, blue: 0.9))
+                    }
+                    if let name = fileName {
+                        Text(name)
+                            .font(.system(size: 10, weight: .medium, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                    queueBadge
+                    Spacer()
+                }
+                .padding(.horizontal, 14)
+
+                if toolInput != nil {
+                    toolDetailView
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(Color.white.opacity(0.04))
+                }
+
+                HStack(spacing: 6) {
+                    PixelButton(label: L10n.shared["deny"], fg: .white.opacity(0.95), bg: Color(red: 0.45, green: 0.12, blue: 0.12), border: Color(red: 0.7, green: 0.25, blue: 0.25), action: onDeny)
+                    PixelButton(label: L10n.shared["allow_once"], fg: .white.opacity(0.95), bg: Color(red: 0.16, green: 0.38, blue: 0.18), border: Color(red: 0.28, green: 0.62, blue: 0.32), action: onAllow)
+                    PixelButton(label: L10n.shared["always"], fg: .white.opacity(0.95), bg: Color(red: 0.14, green: 0.28, blue: 0.52), border: Color(red: 0.28, green: 0.48, blue: 0.82), action: onAlwaysAllow)
+                }
+                .padding(.horizontal, 14)
             }
-            .padding(.horizontal, 14)
         }
         .padding(.vertical, 10)
         .overlay(alignment: .top) {
-            Phosphor.warningAmber.opacity(0.35)
+            (isExitPlanMode ? Color(red: 0.4, green: 0.6, blue: 1.0) : Phosphor.warningAmber).opacity(0.35)
                 .frame(height: 1)
                 .blur(radius: 2)
         }
@@ -1101,7 +1158,7 @@ private struct PixelButton: View {
 
 // MARK: - Session List
 
-private struct SessionListView: View {
+@MainActor private struct SessionListView: View {
     var appState: AppState
     /// When set, only show this session (auto-expand on completion)
     var onlySessionId: String? = nil

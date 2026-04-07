@@ -507,6 +507,7 @@ class PanelWindowController: NSObject, NSWindowDelegate {
         fullscreenPoller?.invalidate()
         fullscreenPoller = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] timer in
             guard let self else { timer.invalidate(); return }
+            nonisolated(unsafe) let timer = timer
             Task { @MainActor in
                 if !self.isActiveSpaceFullscreen() {
                     self.fullscreenLatch = false
