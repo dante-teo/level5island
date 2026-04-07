@@ -8,6 +8,8 @@ private enum Phosphor {
     static let borderHover   = Color.white.opacity(0.18)
     static let warningAmber  = Color(red: 1.0, green: 0.7, blue: 0.28)
     static let questionCyan  = Color(red: 0.4, green: 0.7, blue: 1.0)
+    static let planBlue      = Color(red: 0.6, green: 0.8, blue: 1.0)
+    static let planAccent    = Color(red: 0.4, green: 0.6, blue: 1.0)
 }
 
 private extension AnyTransition {
@@ -161,6 +163,20 @@ struct NotchPanelView: View {
                             )
                             .transition(.cardReveal)
                         }
+                    case .planNotification(let sid, let title, let filePath):
+                        PlanNotificationBar(
+                            title: title,
+                            filePath: filePath,
+                            onGoToTerminal: {
+                                if let session = appState.sessions[sid] {
+                                    TerminalActivator.activate(session: session, sessionId: sid)
+                                }
+                                withAnimation(NotchAnimation.close) {
+                                    appState.surface = .collapsed
+                                }
+                            }
+                        )
+                        .transition(.cardReveal)
                     case .completionCard:
                         SessionListView(appState: appState, onlySessionId: appState.justCompletedSessionId)
                             .transition(.listReveal)
@@ -211,7 +227,7 @@ struct NotchPanelView: View {
                     return
                 }
                 switch appState.surface {
-                case .approvalCard, .questionCard: return
+                case .approvalCard, .questionCard, .planNotification: return
                 case .completionCard:
                     // Completion card: mark entered on hover-in, block collapse until entered
                     if hovering {
@@ -645,6 +661,60 @@ private struct IdleIndicatorBar: View {
 
 // MARK: - Approval Bar (below notch, auto-expanded)
 
+private struct PlanNotificationBar: View {
+    let title: String
+    let filePath: String?
+    let onGoToTerminal: () -> Void
+
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                Text("*")
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Phosphor.planBlue)
+                Text(L10n.shared["plan_review"])
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Phosphor.planBlue)
+                Spacer()
+            }
+            .padding(.horizontal, 14)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .lineLimit(2)
+                if let path = filePath {
+                    Text(path)
+                        .font(.system(size: 9, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.35))
+                        .lineLimit(1)
+                        .truncationMode(.head)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.white.opacity(0.04))
+
+            PixelButton(
+                label: L10n.shared["go_to_terminal"],
+                fg: .white.opacity(0.95),
+                bg: Color(red: 0.14, green: 0.28, blue: 0.52),
+                border: Color(red: 0.28, green: 0.48, blue: 0.82),
+                action: onGoToTerminal
+            )
+            .padding(.horizontal, 14)
+        }
+        .padding(.vertical, 10)
+        .overlay(alignment: .top) {
+            Phosphor.planAccent.opacity(0.35)
+                .frame(height: 1)
+                .blur(radius: 2)
+        }
+    }
+}
+
 private struct ApprovalBar: View {
     let tool: String
     let toolInput: [String: Any]?
@@ -653,8 +723,6 @@ private struct ApprovalBar: View {
     let onAllow: () -> Void
     let onAlwaysAllow: () -> Void
     let onDeny: () -> Void
-
-    private var isExitPlanMode: Bool { tool == "ExitPlanMode" }
 
     private var fileName: String? {
         guard let fp = toolInput?["file_path"] as? String else { return nil }
@@ -667,21 +735,6 @@ private struct ApprovalBar: View {
 
     private var serverName: String? {
         toolInput?["server_name"] as? String
-    }
-
-    private var planTitle: String {
-        guard let plan = toolInput?["plan"] as? String else { return L10n.shared["plan_review"] }
-        for line in plan.split(separator: "\n", omittingEmptySubsequences: false) {
-            let trimmed = line.drop(while: { $0 == " " || $0 == "\t" })
-            if trimmed.hasPrefix("#") {
-                return String(trimmed.drop(while: { $0 == "#" || $0 == " " }).prefix(60))
-            }
-        }
-        return L10n.shared["plan_review"]
-    }
-
-    private var planFilePath: String? {
-        toolInput?["planFilePath"] as? String
     }
 
     @ViewBuilder
@@ -699,43 +752,6 @@ private struct ApprovalBar: View {
 
     var body: some View {
         VStack(spacing: 8) {
-            if isExitPlanMode {
-                HStack(spacing: 6) {
-                    Text("*")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color(red: 0.6, green: 0.8, blue: 1.0))
-                    Text(L10n.shared["plan_review"])
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color(red: 0.6, green: 0.8, blue: 1.0))
-                    queueBadge
-                    Spacer()
-                }
-                .padding(.horizontal, 14)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(planTitle)
-                        .font(.system(size: 10, weight: .semibold, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.85))
-                        .lineLimit(2)
-                    if let path = planFilePath {
-                        Text(path)
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.35))
-                            .lineLimit(1)
-                            .truncationMode(.head)
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.white.opacity(0.04))
-
-                HStack(spacing: 6) {
-                    PixelButton(label: L10n.shared["deny"], fg: .white.opacity(0.95), bg: Color(red: 0.45, green: 0.12, blue: 0.12), border: Color(red: 0.7, green: 0.25, blue: 0.25), action: onDeny)
-                    PixelButton(label: L10n.shared["approve"], fg: .white.opacity(0.95), bg: Color(red: 0.16, green: 0.38, blue: 0.18), border: Color(red: 0.28, green: 0.62, blue: 0.32), action: onAllow)
-                }
-                .padding(.horizontal, 14)
-            } else {
                 HStack(spacing: 6) {
                     Text("!")
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -772,11 +788,10 @@ private struct ApprovalBar: View {
                     PixelButton(label: L10n.shared["always"], fg: .white.opacity(0.95), bg: Color(red: 0.14, green: 0.28, blue: 0.52), border: Color(red: 0.28, green: 0.48, blue: 0.82), action: onAlwaysAllow)
                 }
                 .padding(.horizontal, 14)
-            }
         }
         .padding(.vertical, 10)
         .overlay(alignment: .top) {
-            (isExitPlanMode ? Color(red: 0.4, green: 0.6, blue: 1.0) : Phosphor.warningAmber).opacity(0.35)
+            Phosphor.warningAmber.opacity(0.35)
                 .frame(height: 1)
                 .blur(radius: 2)
         }

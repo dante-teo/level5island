@@ -37,6 +37,7 @@ final class AppState {
     private var maxHistory: Int { SettingsManager.shared.maxToolHistory }
     private var cleanupTimer: Timer?
     private var autoCollapseTask: Task<Void, Never>?
+    private var planCollapseTask: Task<Void, Never>?
     private var completionQueue: [String] = []
     /// Mouse must enter the panel before auto-collapse is allowed (prevents instant dismiss)
     var completionHasBeenEntered = false
@@ -339,6 +340,52 @@ final class AppState {
         withAnimation(NotchAnimation.close) {
             surface = .collapsed
         }
+    }
+
+    // MARK: - Plan notification (ExitPlanMode auto-approved)
+
+    func handlePlanNotification(_ event: HookEvent) {
+        let sessionId = event.sessionId ?? "default"
+        if sessions[sessionId] == nil {
+            sessions[sessionId] = SessionSnapshot()
+        }
+        extractMetadata(into: &sessions, sessionId: sessionId, event: event)
+        tryMonitorSession(sessionId)
+
+        let title = Self.extractPlanTitle(from: event.toolInput)
+        let filePath = event.toolInput?["planFilePath"] as? String
+
+        activeSessionId = sessionId
+        withAnimation(NotchAnimation.pop) {
+            surface = .planNotification(sessionId: sessionId, title: title, filePath: filePath)
+        }
+        SoundManager.shared.handleEvent("PermissionRequest")
+
+        if let session = sessions[sessionId] {
+            TerminalActivator.activate(session: session, sessionId: sessionId)
+        }
+
+        planCollapseTask?.cancel()
+        planCollapseTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard !Task.isCancelled else { return }
+            if case .planNotification = surface {
+                withAnimation(NotchAnimation.close) {
+                    surface = .collapsed
+                }
+            }
+        }
+    }
+
+    private static func extractPlanTitle(from toolInput: [String: Any]?) -> String {
+        guard let plan = toolInput?["plan"] as? String else { return "Plan Review" }
+        for line in plan.split(separator: "\n", omittingEmptySubsequences: false) {
+            let trimmed = line.drop(while: { $0 == " " || $0 == "\t" })
+            if trimmed.hasPrefix("#") {
+                return String(trimmed.drop(while: { $0 == "#" || $0 == " " }).prefix(60))
+            }
+        }
+        return "Plan Review"
     }
 
     // Cached derived state (refreshed by refreshDerivedState after session mutations)
