@@ -56,7 +56,7 @@ English and Simplified Chinese, auto-detected from system language.
 
 ## Distribution
 
-- **Homebrew**: `brew tap wxtsky/tap && brew install --cask codeisland`
+- **Homebrew**: `brew tap dante-teo/tap && brew install --cask codeisland`
 - **Manual**: DMG download from GitHub Releases
 - **Source**: `swift build && open .build/debug/CodeIsland.app`
 

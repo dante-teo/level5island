@@ -47,13 +47,13 @@ Built for **Claude Code** — 13 hook events, terminal tab jump, full session tr
 ### Homebrew (Recommended)
 
 ```bash
-brew tap wxtsky/tap
+brew tap dante-teo/tap
 brew install --cask codeisland
 ```
 
 ### Manual Download
 
-1. Go to [Releases](https://github.com/wxtsky/CodeIsland/releases)
+1. Go to [Releases](https://github.com/dante-teo/level5island/releases)
 2. Download `CodeIsland.dmg`
 3. Open the DMG and drag `CodeIsland.app` to your Applications folder
 4. Launch CodeIsland — it will automatically install the Claude Code hook
@@ -65,7 +65,7 @@ brew install --cask codeisland
 Requires **macOS 14+** and **Swift 5.9+**.
 
 ```bash
-git clone https://github.com/wxtsky/CodeIsland.git
+git clone https://github.com/dante-teo/level5island.git
 cd CodeIsland
 
 # Development (debug build + launch)
@@ -111,11 +111,11 @@ This project was inspired by [claude-island](https://github.com/farouqaldori/cla
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=wxtsky%2FCodeIsland&type=date&legend=bottom-right">
+<a href="https://www.star-history.com/?repos=dante-teo%2Flevel5island&type=date&legend=bottom-right">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=wxtsky/CodeIsland&type=date&theme=dark&legend=top-left" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=wxtsky/CodeIsland&type=date&legend=top-left" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=wxtsky/CodeIsland&type=date&legend=top-left" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=dante-teo/level5island&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=dante-teo/level5island&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=dante-teo/level5island&type=date&legend=top-left" />
  </picture>
 </a>
 

@@ -76,7 +76,7 @@ echo "==> App bundle assembled at $APP_DIR"
 # apps downloaded from the internet ("damaged" / "unidentified developer").
 #
 # Workaround for users: run  xattr -cr /Applications/CodeIsland.app
-# Or install via Homebrew:  brew install wxtsky/tap/codeisland
+# Or install via Homebrew:  brew install dante-teo/tap/codeisland
 #
 # To enable signing, uncomment below and set your credentials:
 # ---------------------------------------------------------------------------

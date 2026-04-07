@@ -6,7 +6,7 @@ import os.log
 final class UpdateChecker: ObservableObject {
     static let shared = UpdateChecker()
     private static let log = Logger(subsystem: "com.codeisland", category: "UpdateChecker")
-    private let repo = "wxtsky/CodeIsland"
+    private let repo = "dante-teo/level5island"
 
     @Published var isDownloading = false
 
