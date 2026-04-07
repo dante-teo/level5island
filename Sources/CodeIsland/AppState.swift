@@ -426,7 +426,8 @@ final class AppState {
         }
 
         // Permission/question was answered externally (e.g. user replied in terminal).
-        if wasWaiting {
+        // Subagent events (agentId != nil) must not drain the parent's pending items.
+        if wasWaiting, event.agentId == nil {
             if Self.clearsWaiting.contains(event.eventName) {
                 drainPermissions(forSession: sessionId)
                 drainQuestions(forSession: sessionId)
