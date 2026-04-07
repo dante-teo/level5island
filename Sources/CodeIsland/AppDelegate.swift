@@ -4,7 +4,7 @@ import os.log
 
 @MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private static let log = Logger(subsystem: "com.codeisland", category: "AppDelegate")
+    private static let log = Logger(subsystem: Log.subsystem, category: "AppDelegate")
 
     var panelController: PanelWindowController?
     private var hookServer: HookServer?

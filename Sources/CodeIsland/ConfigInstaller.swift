@@ -3,7 +3,7 @@ import Foundation
 // MARK: - Hook Identifiers
 
 private enum HookId {
-    static let current = "codeisland"
+    static let current = "level5island"
     static let legacy = "vibenotch"
     static func isOurs(_ s: String) -> Bool {
         s.contains(current) || s.contains(legacy)
@@ -27,9 +27,9 @@ struct CLIConfig {
 }
 
 struct ConfigInstaller {
-    private static let bridgePath = NSHomeDirectory() + "/.claude/hooks/codeisland-bridge"
-    private static let hookScriptPath = NSHomeDirectory() + "/.claude/hooks/codeisland-hook.sh"
-    private static let hookCommand = "~/.claude/hooks/codeisland-hook.sh"
+    private static let bridgePath = NSHomeDirectory() + "/.claude/hooks/level5island-bridge"
+    private static let hookScriptPath = NSHomeDirectory() + "/.claude/hooks/level5island-hook.sh"
+    private static let hookCommand = "~/.claude/hooks/level5island-hook.sh"
 
     // MARK: - All supported CLIs
 
@@ -65,14 +65,14 @@ struct ConfigInstaller {
     /// Hook script for Claude Code (dispatcher: bridge binary → nc fallback)
     private static let hookScript = """
         #!/bin/bash
-        # CodeIsland hook v\(hookScriptVersion) — native bridge with shell fallback
-        BRIDGE="$HOME/.claude/hooks/codeisland-bridge"
+        # Level5Island hook v\(hookScriptVersion) — native bridge with shell fallback
+        BRIDGE="$HOME/.claude/hooks/level5island-bridge"
         if [ -x "$BRIDGE" ]; then
           "$BRIDGE" "$@"
           exit $?
         fi
         # Fallback: original shell approach (no binary installed yet)
-        SOCK="/tmp/codeisland-$(id -u).sock"
+        SOCK="/tmp/level5island-$(id -u).sock"
         [ -S "$SOCK" ] || exit 0
         INPUT=$(cat)
         _ITERM_GUID="${ITERM_SESSION_ID##*:}"
@@ -424,7 +424,7 @@ struct ConfigInstaller {
         if fm.fileExists(atPath: hookScriptPath) {
             if let existing = fm.contents(atPath: hookScriptPath),
                let str = String(data: existing, encoding: .utf8) {
-                let hasCurrentVersion = str.contains("# CodeIsland hook v\(hookScriptVersion)")
+                let hasCurrentVersion = str.contains("# Level5Island hook v\(hookScriptVersion)")
                 needsUpdate = !hasCurrentVersion
             } else {
                 needsUpdate = true
@@ -442,8 +442,8 @@ struct ConfigInstaller {
         guard let execPath = Bundle.main.executablePath else { return }
         let execDir = (execPath as NSString).deletingLastPathComponent
         let contentsDir = (execDir as NSString).deletingLastPathComponent
-        var srcPath = contentsDir + "/Helpers/codeisland-bridge"
-        if !fm.fileExists(atPath: srcPath) { srcPath = execDir + "/codeisland-bridge" }
+        var srcPath = contentsDir + "/Helpers/level5island-bridge"
+        if !fm.fileExists(atPath: srcPath) { srcPath = execDir + "/level5island-bridge" }
         guard fm.fileExists(atPath: srcPath) else { return }
 
         // Atomic replace: copy to temp file first, then rename (overwrites atomically)

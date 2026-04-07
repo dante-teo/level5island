@@ -18,7 +18,7 @@ let package = Package(
             ]
         ),
         .executableTarget(
-            name: "codeisland-bridge",
+            name: "level5island-bridge",
             dependencies: ["CodeIslandCore"],
             path: "Sources/CodeIslandBridge"
         ),

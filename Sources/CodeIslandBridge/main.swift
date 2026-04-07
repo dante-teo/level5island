@@ -1,13 +1,13 @@
 // ============================================================
-// codeisland-bridge — Native Claude Code hook event forwarder
+// level5island-bridge — Native Claude Code hook event forwarder
 // ============================================================
 // Replaces shell script + nc with:
 // • Proper JSON parsing (no string manipulation)
 // • Deep terminal environment detection (tmux, Kitty, iTerm, Ghostty)
 // • Native POSIX socket communication
 // • session_id validation (drop events without it)
-// • CODEISLAND_SKIP env var support
-// • Debug logging (CODEISLAND_DEBUG)
+// • LEVEL5ISLAND_SKIP env var support
+// • Debug logging (LEVEL5ISLAND_DEBUG)
 // ============================================================
 
 import Foundation
@@ -70,10 +70,10 @@ func runCommand(_ path: String, args: [String]) -> String? {
 }
 
 func debugLog(_ message: String) {
-    guard ProcessInfo.processInfo.environment["CODEISLAND_DEBUG"] != nil else { return }
+    guard ProcessInfo.processInfo.environment["LEVEL5ISLAND_DEBUG"] != nil else { return }
     let ts = ISO8601DateFormatter().string(from: Date())
     let line = "[\(ts)] \(message)\n"
-    let path = "/tmp/codeisland-bridge.log"
+    let path = "/tmp/level5island-bridge.log"
     if let handle = FileHandle(forWritingAtPath: path) {
         handle.seekToEndOfFile()
         handle.write(Data(line.utf8))
@@ -173,8 +173,8 @@ let env = ProcessInfo.processInfo.environment
 let args = CommandLine.arguments
 
 
-// Quick exit: skip if CODEISLAND_SKIP is set
-guard env["CODEISLAND_SKIP"] == nil else { exit(0) }
+// Quick exit: skip if LEVEL5ISLAND_SKIP is set
+guard env["LEVEL5ISLAND_SKIP"] == nil else { exit(0) }
 
 // Quick exit: socket doesn't exist or isn't a socket
 var statBuf = stat()

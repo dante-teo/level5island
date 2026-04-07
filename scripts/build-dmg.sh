@@ -39,8 +39,8 @@ mkdir -p "$CONTENTS_DIR/Resources"
 # Create universal binaries
 lipo -create "$ARM_DIR/CodeIsland" "$X86_DIR/CodeIsland" \
      -output "$CONTENTS_DIR/MacOS/CodeIsland"
-lipo -create "$ARM_DIR/codeisland-bridge" "$X86_DIR/codeisland-bridge" \
-     -output "$CONTENTS_DIR/Helpers/codeisland-bridge"
+lipo -create "$ARM_DIR/level5island-bridge" "$X86_DIR/level5island-bridge" \
+     -output "$CONTENTS_DIR/Helpers/level5island-bridge"
 
 # Write Info.plist (use the root Info.plist as base, update version)
 CURRENT_VER=$(defaults read "$REPO_ROOT/Info.plist" CFBundleShortVersionString)
@@ -76,7 +76,7 @@ echo "==> App bundle assembled at $APP_DIR"
 # apps downloaded from the internet ("damaged" / "unidentified developer").
 #
 # Workaround for users: run  xattr -cr /Applications/CodeIsland.app
-# Or install via Homebrew:  brew install dante-teo/tap/codeisland
+# Or install via Homebrew:  brew install dante-teo/tap/level5island
 #
 # To enable signing, uncomment below and set your credentials:
 # ---------------------------------------------------------------------------
@@ -108,7 +108,7 @@ create-dmg \
 # ---------------------------------------------------------------------------
 # Notarization (uncomment after Developer ID signing)
 # ---------------------------------------------------------------------------
-# BUNDLE_ID="com.codeisland.app"
+# BUNDLE_ID="com.level5island.app"
 # APPLE_ID="your@apple.id"
 # APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"  # app-specific password
 #

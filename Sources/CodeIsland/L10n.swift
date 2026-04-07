@@ -180,7 +180,7 @@ final class L10n: ObservableObject {
         "update_manual_download": "Download Manually",
         "update_homebrew_title": "Update Available",
         "update_homebrew_body": "CodeIsland %@ is available. Since you installed via Homebrew, please run:",
-        "update_homebrew_command": "brew upgrade codeisland",
+        "update_homebrew_command": "brew upgrade level5island",
         "update_copy_command": "Copy Command",
 
         // NotchPanel
@@ -359,7 +359,7 @@ final class L10n: ObservableObject {
         "update_manual_download": "手动下载",
         "update_homebrew_title": "发现新版本",
         "update_homebrew_body": "CodeIsland %@ 已发布。由于您通过 Homebrew 安装，请运行：",
-        "update_homebrew_command": "brew upgrade codeisland",
+        "update_homebrew_command": "brew upgrade level5island",
         "update_copy_command": "复制命令",
 
         // NotchPanel

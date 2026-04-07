@@ -4,12 +4,12 @@
 
 ```
 ┌─────────────────┐     ┌─────────────────────┐     ┌──────────────────┐
-│  AI CLI Tool     │────▶│  codeisland-bridge   │────▶│  CodeIsland.app  │
+│  AI CLI Tool     │────▶│  level5island-bridge  │────▶│  CodeIsland.app  │
 │  (hook trigger)  │     │  (native binary)     │     │  (HookServer)    │
 └─────────────────┘     └─────────────────────┘     └──────────────────┘
                               │                            │
                          Terminal detection          Unix socket IPC
-                         JSON serialization     /tmp/codeisland-<uid>.sock
+                         JSON serialization     /tmp/level5island-<uid>.sock
 ```
 
 ## Targets
@@ -50,7 +50,7 @@ SwiftUI application layer. Observable state, UI, system integration.
 - Tool-specific views: `CursorView`, `CopilotView`, `GeminiView`, `QoderView`, `DroidView`, `BuddyView`, `DexView`, `OpenCodeView`
 - **PixelCharacterView** / **MascotView** — Pixel-art mascot rendering with animation states.
 
-### codeisland-bridge (CLI Binary)
+### level5island-bridge (CLI Binary)
 Lightweight (~86KB) native binary invoked by CLI tool hooks.
 
 1. Reads JSON event from stdin
@@ -97,6 +97,6 @@ Sessions are keyed by `sessionId` (from the hook event). Multiple sessions can b
 
 ## IPC Protocol
 
-- **Transport**: Unix domain socket at `/tmp/codeisland-<uid>.sock`
+- **Transport**: Unix domain socket at `/tmp/level5island-<uid>.sock`
 - **Format**: Newline-delimited JSON
 - **Direction**: Bridge → App (events), App → Bridge (responses for permission/question)

@@ -5,7 +5,7 @@ import os.log
 @MainActor
 final class UpdateChecker: ObservableObject {
     static let shared = UpdateChecker()
-    private static let log = Logger(subsystem: "com.codeisland", category: "UpdateChecker")
+    private static let log = Logger(subsystem: Log.subsystem, category: "UpdateChecker")
     private let repo = "dante-teo/level5island"
 
     @Published var isDownloading = false
@@ -195,7 +195,7 @@ final class UpdateChecker: ObservableObject {
 
         let tempDir = NSTemporaryDirectory()
         let dmgPath = tempDir + "CodeIsland-update.dmg"
-        let mountPoint = "/tmp/codeisland-update-mount"
+        let mountPoint = "/tmp/level5island-update-mount"
 
         do {
             // 1. Download DMG

@@ -3,7 +3,7 @@ import CoreServices
 import os.log
 import CodeIslandCore
 
-private let log = Logger(subsystem: "com.codeisland", category: "AppState")
+private let log = Logger(subsystem: Log.subsystem, category: "AppState")
 
 @MainActor
 @Observable

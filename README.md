@@ -48,7 +48,7 @@ Built for **Claude Code** — 13 hook events, terminal tab jump, full session tr
 
 ```bash
 brew tap dante-teo/tap
-brew install --cask codeisland
+brew install --cask level5island
 ```
 
 ### Manual Download
@@ -80,8 +80,8 @@ open .build/release/CodeIsland.app
 
 ```
 Claude Code hook event
-  → codeisland-bridge (native Swift binary, ~86KB)
-    → Unix socket → /tmp/codeisland-<uid>.sock
+  → level5island-bridge (native Swift binary, ~86KB)
+    → Unix socket → /tmp/level5island-<uid>.sock
       → CodeIsland app receives event
         → Updates UI in real time
 ```

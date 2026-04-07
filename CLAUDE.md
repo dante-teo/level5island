@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CodeIsland is a native macOS menu bar app (Swift/SwiftUI) that displays real-time status of Claude Code sessions in the MacBook notch. It connects via Unix socket IPC (`/tmp/codeisland-<uid>.sock`) to receive hook events from Claude Code.
+CodeIsland is a native macOS menu bar app (Swift/SwiftUI) that displays real-time status of Claude Code sessions in the MacBook notch. It connects via Unix socket IPC (`/tmp/level5island-<uid>.sock`) to receive hook events from Claude Code.
 
 ## Build & Run
 
@@ -36,11 +36,11 @@ No external dependencies — uses only SPM with system frameworks (SwiftUI, AppK
 |--------|------|------|---------|
 | `CodeIslandCore` | Library | `Sources/CodeIslandCore/` | Pure business logic: models, state reduction, event normalization |
 | `CodeIsland` | Executable | `Sources/CodeIsland/` | App layer: UI, window management, settings, hook installation |
-| `codeisland-bridge` | Executable | `Sources/CodeIslandBridge/` | Native CLI hook binary (~86KB): terminal detection, socket forwarding |
+| `level5island-bridge` | Executable | `Sources/CodeIslandBridge/` | Native CLI hook binary (~86KB): terminal detection, socket forwarding |
 
 **Data flow** (unidirectional, Redux-like):
 ```
-AI Tool hook → codeisland-bridge → Unix socket → HookServer
+AI Tool hook → level5island-bridge → Unix socket → HookServer
   → HookEvent parsed → SessionSnapshot.reduceEvent() → [SideEffect]
     → AppState executes effects → SwiftUI observes changes
 ```
@@ -66,7 +66,7 @@ AI Tool hook → codeisland-bridge → Unix socket → HookServer
 
 - macOS 14.0+ (Sonoma), Swift 5.9+
 - Bilingual UI strings in `L10n.swift` (English + Chinese)
-- Logging via `os.log` with subsystem `com.codeisland`
-- Bundle ID: `com.codeisland` (see `Info.plist`)
+- Logging via `os.log` with subsystem `com.level5island`
+- Bundle ID: `com.level5island` (see `Info.plist`)
 - App icon compiled from `Assets.xcassets` + `AppIcon.icon` via `xcrun actool`
 - Resources (sounds) in `Sources/CodeIsland/Resources/`

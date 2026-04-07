@@ -24,8 +24,8 @@ mkdir -p "$APP_BUNDLE/Contents/Resources"
 
 lipo -create "$ARM_DIR/$APP_NAME" "$X86_DIR/$APP_NAME" \
      -output "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
-lipo -create "$ARM_DIR/codeisland-bridge" "$X86_DIR/codeisland-bridge" \
-     -output "$APP_BUNDLE/Contents/Helpers/codeisland-bridge"
+lipo -create "$ARM_DIR/level5island-bridge" "$X86_DIR/level5island-bridge" \
+     -output "$APP_BUNDLE/Contents/Helpers/level5island-bridge"
 cp Info.plist "$APP_BUNDLE/Contents/Info.plist"
 
 echo "Compiling app icon assets..."
@@ -52,7 +52,7 @@ for bundle in .build/*/release/*.bundle; do
 done
 
 echo "Ad-hoc code signing..."
-codesign --force --sign - "$APP_BUNDLE/Contents/Helpers/codeisland-bridge"
+codesign --force --sign - "$APP_BUNDLE/Contents/Helpers/level5island-bridge"
 codesign --force --sign - "$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 
 echo "Done: $APP_BUNDLE"
