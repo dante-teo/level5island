@@ -1,7 +1,6 @@
 import Foundation
 
 public enum SessionTitleSource: String, Sendable, Codable {
-    case codexThreadName
     case claudeCustomTitle
     case claudeAiTitle
 }
@@ -9,14 +8,6 @@ public enum SessionTitleSource: String, Sendable, Codable {
 public struct SessionSnapshot {
     public static let supportedSources: Set<String> = [
         "claude",
-        "codex",
-        "gemini",
-        "cursor",
-        "copilot",
-        "qoder",
-        "droid",
-        "codebuddy",
-        "opencode",
     ]
 
     public var status: AgentStatus = .idle
@@ -42,14 +33,11 @@ public struct SessionSnapshot {
     public var tmuxClientTty: String?   // tmux client TTY for real terminal detection
     public var termBundleId: String?    // __CFBundleIdentifier for precise terminal ID
     public var cliPid: pid_t?            // CLI process PID (from bridge _ppid)
-    public var source: String = "claude" // "claude" or "codex"
+    public var source: String = "claude"
     public var interrupted: Bool = false
     public var sessionTitle: String?
     public var sessionTitleSource: SessionTitleSource?
     public var providerSessionId: String?
-    /// nil = unchecked, false = not YOLO, true = YOLO
-    public var isYoloMode: Bool?
-
     public init(startTime: Date = Date()) {
         self.startTime = startTime
     }
@@ -90,14 +78,7 @@ public struct SessionSnapshot {
     /// Display name: project folder, or short session ID
     public var displayName: String {
         if let cwd = cwd {
-            let last = (cwd as NSString).lastPathComponent
-            // If last component is a timestamp/numeric ID (e.g. CodeBuddy "20260406010126"),
-            // show the parent directory name instead
-            if last.count >= 8 && last.allSatisfy(\.isNumber) {
-                let parent = ((cwd as NSString).deletingLastPathComponent as NSString).lastPathComponent
-                if !parent.isEmpty && parent != "/" { return parent }
-            }
-            return last
+            return (cwd as NSString).lastPathComponent
         }
         return "Session"
     }
@@ -142,38 +123,17 @@ public struct SessionSnapshot {
 
     /// Source label for display
     public var sourceLabel: String {
-        switch source {
-        case "claude": return "Claude"
-        case "codex": return "Codex"
-        case "gemini": return "Gemini"
-        case "cursor": return "Cursor"
-        case "qoder": return "Qoder"
-        case "droid": return "Factory"
-        case "codebuddy": return "CodeBuddy"
-        case "opencode": return "OpenCode"
-        default: return source.capitalized
-        }
+        "Claude"
     }
 
-    public var isCodex: Bool { source == "codex" }
     public var isClaude: Bool { source == "claude" }
 
-    /// True when the session runs inside a native app in APP mode (Cursor agent, Codex APP, etc.)
-    /// — the app IS the agent, not just a terminal hosting a CLI.
-    /// Requires both bundle ID AND source to match (Claude CLI in Cursor terminal ≠ native app mode).
-    public var isNativeAppMode: Bool {
-        guard let bid = termBundleId else { return false }
-        guard let expectedSource = Self.appBundleSources[bid] else { return false }
-        return source == expectedSource
-    }
+    /// Claude Code is always a CLI tool, never a native app mode.
+    public var isNativeAppMode: Bool { false }
 
     /// True when the session runs inside an IDE's integrated terminal.
-    /// We can't query IDE tab/pane state, so notification suppression should be skipped.
     public var isIDETerminal: Bool {
         guard let bid = termBundleId else { return false }
-        if isNativeAppMode { return false }
-        // Known apps used as terminal (e.g., Claude CLI in Cursor's integrated terminal)
-        if Self.appBundleNames[bid] != nil { return true }
         let lower = bid.lowercased()
         return lower.contains("vscode") || lower.contains("vscodium")
             || lower == "com.trae.app"
@@ -186,34 +146,8 @@ public struct SessionSnapshot {
             || lower.contains("antigravity")
     }
 
-    /// Bundle IDs of native apps (not terminals)
-    private static let appBundleNames: [String: String] = [
-        "com.todesktop.230313mzl4w4u92": "Cursor",
-        "com.qoder.ide": "Qoder",
-        "com.factory.app": "Factory",
-        "com.tencent.codebuddy": "CodeBuddy",
-        "com.openai.codex": "Codex",
-        "ai.opencode.desktop": "OpenCode",
-    ]
-
-    /// Maps native app bundle IDs to their expected source identifier.
-    /// Used by isNativeAppMode to distinguish "Cursor agent" from "Claude CLI in Cursor terminal".
-    private static let appBundleSources: [String: String] = [
-        "com.todesktop.230313mzl4w4u92": "cursor",
-        "com.qoder.ide": "qoder",
-        "com.factory.app": "droid",
-        "com.tencent.codebuddy": "codebuddy",
-        "com.openai.codex": "codex",
-        "ai.opencode.desktop": "opencode",
-    ]
-
     /// Short terminal/app name for display tag
     public var terminalName: String? {
-        // If termBundleId is a known app, show app name (APP mode)
-        if let bid = termBundleId, let name = Self.appBundleNames[bid] {
-            return name
-        }
-        // Check bundle ID for terminal identification (more reliable than TERM_PROGRAM)
         if let bid = termBundleId {
             let lower = bid.lowercased()
             if lower.contains("cmux") { return "cmux" }
@@ -355,7 +289,7 @@ public func reduceEvent(
     maxHistory: Int
 ) -> [SideEffect] {
     let sessionId = event.sessionId ?? "default"
-    let eventName = EventNormalizer.normalize(event.eventName)
+    let eventName = event.eventName
     var effects: [SideEffect] = []
 
     // Ensure session exists
@@ -448,13 +382,6 @@ public func reduceEvent(
             sessions[sessionId]?.currentTool = nil
             sessions[sessionId]?.toolDescription = nil
         }
-    case "AfterAgentResponse":
-        // Cursor-specific: AI reply arrives here (in "text" field), not in Stop
-        if let text = event.rawJSON["text"] as? String, !text.isEmpty {
-            sessions[sessionId]?.lastAssistantMessage = text
-            sessions[sessionId]?.addRecentMessage(ChatMessage(isUser: false, text: text))
-        }
-        sessions[sessionId]?.status = .processing
     case "Stop":
         // Detect ESC/Ctrl+C interruption
         let stopReason = event.rawJSON["stop_reason"] as? String ?? ""
@@ -468,10 +395,6 @@ public func reduceEvent(
         if let msg = assistantMsg {
             sessions[sessionId]?.lastAssistantMessage = msg
             sessions[sessionId]?.addRecentMessage(ChatMessage(isUser: false, text: msg))
-        } else if sessions[sessionId]?.lastAssistantMessage == nil,
-                  sessions[sessionId]?.recentMessages.last?.isUser == true {
-            // No reply content from hook (e.g. CodeBuddy) -- add placeholder
-            sessions[sessionId]?.addRecentMessage(ChatMessage(isUser: false, text: "[回复完成]"))
         }
         // Try to capture user prompt from Stop event if not already set
         if sessions[sessionId]?.lastUserPrompt == nil {
@@ -555,15 +478,6 @@ public func extractMetadata(into sessions: inout [String: SessionSnapshot], sess
               let roots = event.rawJSON["workspace_roots"] as? [String],
               let first = roots.first, !first.isEmpty {
         sessions[sessionId]?.cwd = first
-    } else if sessions[sessionId]?.cwd == nil,
-              let tp = event.rawJSON["transcript_path"] as? String, !tp.isEmpty {
-        // Cursor: extract project dir from transcript_path
-        // e.g. ~/.cursor/projects/<project>/agent-transcripts/... → ~/.cursor/projects/<project>
-        let parts = tp.split(separator: "/")
-        if let idx = parts.firstIndex(of: "projects"), idx + 1 < parts.count {
-            let projectName = String(parts[idx + 1])
-            sessions[sessionId]?.cwd = "/\(parts[...idx].joined(separator: "/"))/\(projectName)"
-        }
     }
     if let model = event.rawJSON["model"] as? String, !model.isEmpty {
         sessions[sessionId]?.model = model
@@ -593,34 +507,6 @@ public func extractMetadata(into sessions: inout [String: SessionSnapshot], sess
     }
     if let bundle = event.rawJSON["_term_bundle"] as? String, !bundle.isEmpty {
         sessions[sessionId]?.termBundleId = bundle
-    }
-    // Fallback: extract terminal info from _env sub-object (OpenCode plugin format)
-    if let env = event.rawJSON["_env"] as? [String: String] {
-        if sessions[sessionId]?.termApp == nil,
-           let app = env["TERM_PROGRAM"], !app.isEmpty {
-            sessions[sessionId]?.termApp = app
-        }
-        if sessions[sessionId]?.termBundleId == nil,
-           let bundle = env["__CFBundleIdentifier"], !bundle.isEmpty {
-            sessions[sessionId]?.termBundleId = bundle
-        }
-        if sessions[sessionId]?.itermSessionId == nil,
-           let ses = env["ITERM_SESSION_ID"], !ses.isEmpty {
-            // Extract GUID after "w0t0p0:" prefix
-            if let colonIdx = ses.firstIndex(of: ":") {
-                sessions[sessionId]?.itermSessionId = String(ses[ses.index(after: colonIdx)...])
-            } else {
-                sessions[sessionId]?.itermSessionId = ses
-            }
-        }
-        if sessions[sessionId]?.kittyWindowId == nil,
-           let kitty = env["KITTY_WINDOW_ID"], !kitty.isEmpty {
-            sessions[sessionId]?.kittyWindowId = kitty
-        }
-        if sessions[sessionId]?.tmuxPane == nil,
-           let pane = env["TMUX_PANE"], !pane.isEmpty {
-            sessions[sessionId]?.tmuxPane = pane
-        }
     }
     if let ppid = event.rawJSON["_ppid"] as? Int, ppid > 0 {
         sessions[sessionId]?.cliPid = pid_t(ppid)

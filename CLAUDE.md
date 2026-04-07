@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-CodeIsland is a native macOS menu bar app (Swift/SwiftUI) that displays real-time status of 9 AI coding agents in the MacBook notch. It connects via Unix socket IPC (`/tmp/codeisland-<uid>.sock`) to receive hook events from CLI tools.
+CodeIsland is a native macOS menu bar app (Swift/SwiftUI) that displays real-time status of Claude Code sessions in the MacBook notch. It connects via Unix socket IPC (`/tmp/codeisland-<uid>.sock`) to receive hook events from Claude Code.
 
 ## Build & Run
 
@@ -49,16 +49,14 @@ AI Tool hook → codeisland-bridge → Unix socket → HookServer
 
 - **Pure reducer**: `SessionSnapshot.reduceEvent()` is a pure mutating function that returns `[SideEffect]` — all state changes go through it
 - **Side effects**: Returned from the reducer, executed by `AppState` (sounds, process monitoring, UI triggers)
-- **Event normalization**: `EventNormalizer` maps different CLI tool event formats to a unified set
-- **9 tool sources**: claude, codex, gemini, cursor, copilot, qoder, droid (Factory), codebuddy, opencode — each with tool-specific hook formats
+- **Claude Code only**: single CLI source with direct PascalCase event names
 
 ### Key files
 
 - `SessionSnapshot.swift` — Core state model + `reduceEvent()` reducer
 - `Models.swift` — `HookEvent`, `AgentStatus`, `ToolHistoryEntry`, `ChatMessage`
-- `EventNormalizer.swift` — Cross-CLI event name normalization
 - `AppState.swift` — Observable main state, session lifecycle, effect execution
-- `ConfigInstaller.swift` — Auto-installs hooks into CLI tool configs
+- `ConfigInstaller.swift` — Auto-installs Claude Code hooks into `~/.claude/settings.json`
 - `NotchPanelView.swift` — Main panel UI (compact + expanded modes)
 - `PanelWindowController.swift` — Window positioning, visibility, notch detection
 - `TerminalActivator.swift` — Jump-to-terminal: window focus + tab switching
@@ -71,4 +69,4 @@ AI Tool hook → codeisland-bridge → Unix socket → HookServer
 - Logging via `os.log` with subsystem `com.codeisland`
 - Bundle ID: `com.codeisland` (see `Info.plist`)
 - App icon compiled from `Assets.xcassets` + `AppIcon.icon` via `xcrun actool`
-- Resources (sounds, CLI icons, OpenCode plugin) in `Sources/CodeIsland/Resources/`
+- Resources (sounds) in `Sources/CodeIsland/Resources/`

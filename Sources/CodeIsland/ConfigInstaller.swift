@@ -12,25 +12,12 @@ private enum HookId {
 
 // MARK: - CLI Definitions
 
-/// Hook entry format variants
-enum HookFormat {
-    /// Claude Code style: [{matcher, hooks: [{type, command, timeout, async}]}]
-    case claude
-    /// Codex/Gemini style: [{hooks: [{type, command, timeout}]}]  (no matcher)
-    case nested
-    /// Cursor style: [{command: "..."}]
-    case flat
-    /// GitHub Copilot CLI style: [{type, bash, timeoutSec}] with top-level version
-    case copilot
-}
-
 /// A CLI tool that supports hooks
 struct CLIConfig {
     let name: String           // display name
     let source: String         // --source flag value
     let configPath: String     // path to config file (relative to home)
     let configKey: String      // top-level JSON key containing hooks ("hooks" for most)
-    let format: HookFormat
     let events: [(String, Int, Bool)]  // (eventName, timeout, async)
     /// Events that require a minimum CLI version (eventName → minVersion like "2.1.89")
     var versionedEvents: [String: String] = [:]
@@ -43,17 +30,13 @@ struct ConfigInstaller {
     private static let bridgePath = NSHomeDirectory() + "/.claude/hooks/codeisland-bridge"
     private static let hookScriptPath = NSHomeDirectory() + "/.claude/hooks/codeisland-hook.sh"
     private static let hookCommand = "~/.claude/hooks/codeisland-hook.sh"
-    /// Absolute path for external CLI hooks — avoids tilde expansion issues in IDE environments
-    private static let bridgeCommand = NSHomeDirectory() + "/.claude/hooks/codeisland-bridge"
 
     // MARK: - All supported CLIs
 
     static let allCLIs: [CLIConfig] = [
-        // Claude Code — uses hook script (with bridge dispatcher + nc fallback)
         CLIConfig(
             name: "Claude Code", source: "claude",
             configPath: ".claude/settings.json", configKey: "hooks",
-            format: .claude,
             events: [
                 ("UserPromptSubmit", 5, true),
                 ("PreToolUse", 5, false),
@@ -74,125 +57,7 @@ struct ConfigInstaller {
                 "PostToolUseFailure": "2.1.89",
             ]
         ),
-        // Codex
-        CLIConfig(
-            name: "Codex", source: "codex",
-            configPath: ".codex/hooks.json", configKey: "hooks",
-            format: .nested,
-            events: [
-                ("SessionStart", 5, false),
-                ("UserPromptSubmit", 5, false),
-                ("PreToolUse", 5, false),
-                ("PostToolUse", 5, false),
-                ("Stop", 5, false),
-            ]
-        ),
-        // Gemini CLI — timeout in milliseconds
-        CLIConfig(
-            name: "Gemini", source: "gemini",
-            configPath: ".gemini/settings.json", configKey: "hooks",
-            format: .nested,
-            events: [
-                ("SessionStart", 5000, false),
-                ("SessionEnd", 5000, false),
-                ("BeforeTool", 5000, false),
-                ("AfterTool", 5000, false),
-                ("BeforeAgent", 5000, false),
-                ("AfterAgent", 5000, false),
-            ]
-        ),
-        // Cursor
-        CLIConfig(
-            name: "Cursor", source: "cursor",
-            configPath: ".cursor/hooks.json", configKey: "hooks",
-            format: .flat,
-            events: [
-                ("beforeSubmitPrompt", 5, false),
-                ("beforeShellExecution", 5, false),
-                ("afterShellExecution", 5, false),
-                ("beforeReadFile", 5, false),
-                ("afterFileEdit", 5, false),
-                ("beforeMCPExecution", 5, false),
-                ("afterMCPExecution", 5, false),
-                ("afterAgentThought", 5, false),
-                ("afterAgentResponse", 5, false),
-                ("stop", 5, false),
-            ]
-        ),
-        // Qoder — Claude Code fork
-        CLIConfig(
-            name: "Qoder", source: "qoder",
-            configPath: ".qoder/settings.json", configKey: "hooks",
-            format: .claude,
-            events: [
-                ("UserPromptSubmit", 5, true),
-                ("PreToolUse", 5, false),
-                ("PostToolUse", 5, true),
-                ("SessionStart", 5, false),
-                ("SessionEnd", 5, true),
-                ("Stop", 5, true),
-                ("SubagentStart", 5, true),
-                ("SubagentStop", 5, true),
-                ("Notification", 86400, false),
-                ("PreCompact", 5, true),
-            ]
-        ),
-        // Factory — Claude Code fork (uses "droid" as source identifier)
-        CLIConfig(
-            name: "Factory", source: "droid",
-            configPath: ".factory/settings.json", configKey: "hooks",
-            format: .claude,
-            events: [
-                ("UserPromptSubmit", 5, true),
-                ("PreToolUse", 5, false),
-                ("PostToolUse", 5, true),
-                ("SessionStart", 5, false),
-                ("SessionEnd", 5, true),
-                ("Stop", 5, true),
-                ("SubagentStart", 5, true),
-                ("SubagentStop", 5, true),
-                ("Notification", 86400, false),
-                ("PreCompact", 5, true),
-            ]
-        ),
-        // CodeBuddy — Claude Code fork
-        CLIConfig(
-            name: "CodeBuddy", source: "codebuddy",
-            configPath: ".codebuddy/settings.json", configKey: "hooks",
-            format: .claude,
-            events: [
-                ("UserPromptSubmit", 5, true),
-                ("PreToolUse", 5, false),
-                ("PostToolUse", 5, true),
-                ("SessionStart", 5, false),
-                ("SessionEnd", 5, true),
-                ("Stop", 5, true),
-                ("SubagentStart", 5, true),
-                ("SubagentStop", 5, true),
-                ("Notification", 86400, false),
-                ("PreCompact", 5, true),
-            ]
-        ),
-        // GitHub Copilot CLI
-        CLIConfig(
-            name: "Copilot", source: "copilot",
-            configPath: ".copilot/hooks/codeisland.json", configKey: "hooks",
-            format: .copilot,
-            events: [
-                ("sessionStart", 5, false),
-                ("sessionEnd", 5, true),
-                ("userPromptSubmitted", 5, false),
-                ("preToolUse", 5, false),
-                ("postToolUse", 5, true),
-                ("errorOccurred", 5, true),
-            ]
-        ),
     ]
-
-    /// Non-Claude CLIs (installed via bridge binary directly)
-    private static var externalCLIs: [CLIConfig] {
-        allCLIs.filter { $0.source != "claude" }
-    }
 
     /// Hook script version — bump this when the script template changes
     private static let hookScriptVersion = 3
@@ -220,12 +85,6 @@ struct ConfigInstaller {
         fi
         """
 
-    // MARK: - OpenCode plugin paths
-
-    private static let opencodePluginDir = NSHomeDirectory() + "/.config/opencode/plugins"
-    private static let opencodePluginPath = NSHomeDirectory() + "/.config/opencode/plugins/codeisland.js"
-    private static let opencodeConfigPath = NSHomeDirectory() + "/.config/opencode/config.json"
-
     // MARK: - Install / Uninstall
 
     static func install() -> Bool {
@@ -235,33 +94,14 @@ struct ConfigInstaller {
         let hookDir = (hookScriptPath as NSString).deletingLastPathComponent
         try? fm.createDirectory(atPath: hookDir, withIntermediateDirectories: true)
 
-        // Install hook script + bridge binary (shared by all CLIs)
+        // Install hook script + bridge binary
         installHookScript(fm: fm)
         installBridgeBinary(fm: fm)
 
-        // Install hooks for each enabled CLI
-        var ok = true
-        for cli in allCLIs {
-            guard isEnabled(source: cli.source) else { continue }
-            if cli.source == "claude" {
-                if !installClaudeHooks(cli: cli, fm: fm) { ok = false }
-            } else {
-                if !installExternalHooks(cli: cli, fm: fm) { ok = false }
-            }
-        }
-
-        // Codex requires codex_hooks = true in config.toml
-        if isEnabled(source: "codex"),
-           fm.fileExists(atPath: NSHomeDirectory() + "/.codex") {
-            enableCodexHooksConfig(fm: fm)
-        }
-
-        // Install OpenCode plugin
-        if isEnabled(source: "opencode") {
-            if !installOpencodePlugin(fm: fm) { ok = false }
-        }
-
-        return ok
+        // Install Claude Code hooks
+        guard let cli = allCLIs.first else { return false }
+        guard isEnabled(source: cli.source) else { return true }
+        return installClaudeHooks(cli: cli, fm: fm)
     }
 
     static func uninstall() {
@@ -272,8 +112,6 @@ struct ConfigInstaller {
         for cli in allCLIs {
             uninstallHooks(cli: cli, fm: fm)
         }
-
-        uninstallOpencodePlugin(fm: fm)
     }
 
     /// Check if Claude Code hooks are installed
@@ -285,21 +123,15 @@ struct ConfigInstaller {
 
     /// Check if a specific CLI's hooks are installed
     static func isInstalled(source: String) -> Bool {
-        if source == "opencode" { return isOpencodePluginInstalled(fm: FileManager.default) }
         guard let cli = allCLIs.first(where: { $0.source == source }) else { return false }
         return isHooksInstalled(for: cli, fm: FileManager.default)
     }
 
     /// Check if CLI directory exists (tool is installed on this machine)
     static func cliExists(source: String) -> Bool {
-        if source == "opencode" { return FileManager.default.fileExists(atPath: NSHomeDirectory() + "/.config/opencode") }
-        if source == "copilot" { return FileManager.default.fileExists(atPath: NSHomeDirectory() + "/.copilot") }
         guard let cli = allCLIs.first(where: { $0.source == source }) else { return false }
         return FileManager.default.fileExists(atPath: cli.dirPath)
     }
-
-    // Keep backward compat
-    static func isCodexInstalled() -> Bool { isInstalled(source: "codex") }
 
     /// Whether a CLI is enabled by user (UserDefaults). Default: true.
     static func isEnabled(source: String) -> Bool {
@@ -316,21 +148,10 @@ struct ConfigInstaller {
         if enabled {
             installHookScript(fm: fm)
             installBridgeBinary(fm: fm)
-            if source == "opencode" {
-                return installOpencodePlugin(fm: fm)
-            }
             guard let cli = allCLIs.first(where: { $0.source == source }) else { return false }
-            if cli.source == "claude" {
-                return installClaudeHooks(cli: cli, fm: fm)
-            } else {
-                installExternalHooks(cli: cli, fm: fm)
-                if cli.source == "codex" { enableCodexHooksConfig(fm: fm) }
-                return isHooksInstalled(for: cli, fm: fm)
-            }
+            return installClaudeHooks(cli: cli, fm: fm)
         } else {
-            if source == "opencode" {
-                uninstallOpencodePlugin(fm: fm)
-            } else if let cli = allCLIs.first(where: { $0.source == source }) {
+            if let cli = allCLIs.first(where: { $0.source == source }) {
                 uninstallHooks(cli: cli, fm: fm)
             }
             return true
@@ -347,33 +168,11 @@ struct ConfigInstaller {
         var repaired: [String] = []
         for cli in allCLIs {
             guard isEnabled(source: cli.source) else { continue }
-            let dirExists = cli.format == .copilot
-                ? fm.fileExists(atPath: NSHomeDirectory() + "/.copilot")
-                : fm.fileExists(atPath: cli.dirPath)
-            guard dirExists else { continue }
+            guard fm.fileExists(atPath: cli.dirPath) else { continue }
             if isHooksInstalled(for: cli, fm: fm) { continue }
-            if cli.source == "claude" {
-                if installClaudeHooks(cli: cli, fm: fm) {
-                    repaired.append(cli.name)
-                }
-            } else {
-                installExternalHooks(cli: cli, fm: fm)
-                if cli.source == "codex" { enableCodexHooksConfig(fm: fm) }
-                if isHooksInstalled(for: cli, fm: fm) {
-                    repaired.append(cli.name)
-                }
+            if installClaudeHooks(cli: cli, fm: fm) {
+                repaired.append(cli.name)
             }
-        }
-        // Codex config.toml: ensure codex_hooks = true
-        if isEnabled(source: "codex"),
-           fm.fileExists(atPath: NSHomeDirectory() + "/.codex") {
-            enableCodexHooksConfig(fm: fm)
-        }
-        // OpenCode plugin
-        if isEnabled(source: "opencode"),
-           fm.fileExists(atPath: (opencodeConfigPath as NSString).deletingLastPathComponent),
-           !isOpencodePluginInstalled(fm: fm) {
-            if installOpencodePlugin(fm: fm) { repaired.append("OpenCode") }
         }
         return repaired
     }
@@ -494,9 +293,8 @@ struct ConfigInstaller {
     /// Filter events based on installed CLI version
     private static func compatibleEvents(for cli: CLIConfig) -> [(String, Int, Bool)] {
         guard !cli.versionedEvents.isEmpty else { return cli.events }
-
-        // Only Claude Code needs version checking for now
         guard cli.source == "claude" else { return cli.events }
+
         let version = detectClaudeVersion()
 
         return cli.events.filter { (event, _, _) in
@@ -556,106 +354,6 @@ struct ConfigInstaller {
         return fm.createFile(atPath: cli.fullPath, contents: data)
     }
 
-    // MARK: - External CLIs (use bridge binary directly)
-
-    @discardableResult
-    private static func installExternalHooks(cli: CLIConfig, fm: FileManager) -> Bool {
-        if cli.format == .copilot {
-            // Copilot: check root ~/.copilot exists, create hooks subdir if needed
-            let rootDir = NSHomeDirectory() + "/.copilot"
-            guard fm.fileExists(atPath: rootDir) else { return true }
-            if !fm.fileExists(atPath: cli.dirPath) {
-                try? fm.createDirectory(atPath: cli.dirPath, withIntermediateDirectories: true)
-            }
-        } else {
-            guard fm.fileExists(atPath: cli.dirPath) else { return true } // CLI not installed, skip OK
-        }
-
-        var root: [String: Any] = [:]
-        if let json = parseJSONFile(at: cli.fullPath, fm: fm) {
-            root = json
-        }
-
-        var hooks = root[cli.configKey] as? [String: Any] ?? [:]
-        // Quote the path in case home directory contains spaces or special characters
-        let quotedBridge = bridgeCommand.contains(" ") ? "\"\(bridgeCommand)\"" : bridgeCommand
-        let baseCommand = "\(quotedBridge) --source \(cli.source)"
-
-        for (event, timeout, _) in cli.events {
-            var eventEntries = hooks[event] as? [[String: Any]] ?? []
-            // Remove old hooks before adding fresh ones (ensures reinstall works)
-            eventEntries.removeAll { containsOurHook($0) }
-
-            let entry: [String: Any]
-            switch cli.format {
-            case .claude:
-                entry = ["matcher": "*", "hooks": [["type": "command", "command": baseCommand] as [String: Any]]]
-            case .nested:
-                entry = ["hooks": [["type": "command", "command": baseCommand, "timeout": timeout] as [String: Any]]]
-            case .flat:
-                entry = ["command": baseCommand]
-            case .copilot:
-                // Copilot CLI stdin lacks session_id/hook_event_name — pass event name via flag
-                let copilotCommand = "\(baseCommand) --event \(event)"
-                entry = ["type": "command", "bash": copilotCommand, "timeoutSec": timeout]
-            }
-            eventEntries.append(entry)
-            hooks[event] = eventEntries
-        }
-
-        root[cli.configKey] = hooks
-        // Copilot CLI requires a top-level "version" field
-        if cli.format == .copilot {
-            root["version"] = 1
-        }
-        guard let data = try? JSONSerialization.data(withJSONObject: root, options: [.prettyPrinted, .sortedKeys]) else {
-            return false
-        }
-        return fm.createFile(atPath: cli.fullPath, contents: data)
-    }
-
-    // MARK: - Codex config.toml
-
-    /// Ensure codex_hooks = true under [features] in ~/.codex/config.toml
-    /// so Codex actually fires hook events.
-    @discardableResult
-    private static func enableCodexHooksConfig(fm: FileManager) -> Bool {
-        let configPath = NSHomeDirectory() + "/.codex/config.toml"
-        var contents = ""
-        if fm.fileExists(atPath: configPath) {
-            contents = (try? String(contentsOfFile: configPath, encoding: .utf8)) ?? ""
-        }
-
-        // Already set to true (non-commented) — don't touch
-        if contents.range(of: #"(?m)^\s*codex_hooks\s*=\s*true"#, options: .regularExpression) != nil {
-            return true
-        }
-
-        // Set to false (non-commented) — flip it to true in place
-        if contents.range(of: #"(?m)^\s*codex_hooks\s*=\s*false"#, options: .regularExpression) != nil {
-            contents = contents.replacingOccurrences(
-                of: #"(?m)^\s*codex_hooks\s*=\s*false"#,
-                with: "codex_hooks = true",
-                options: .regularExpression
-            )
-            return fm.createFile(atPath: configPath, contents: contents.data(using: .utf8))
-        }
-
-        // Not present — insert into [features] section or create it
-        var lines = contents.components(separatedBy: "\n")
-        if let featIdx = lines.firstIndex(where: { $0.trimmingCharacters(in: .whitespaces) == "[features]" }) {
-            // Insert after [features] line
-            lines.insert("codex_hooks = true", at: featIdx + 1)
-        } else {
-            // No [features] section — append one
-            if !lines.last!.isEmpty { lines.append("") }
-            lines.append("[features]")
-            lines.append("codex_hooks = true")
-        }
-        let result = lines.joined(separator: "\n")
-        return fm.createFile(atPath: configPath, contents: result.data(using: .utf8))
-    }
-
     // MARK: - Uninstall (generic)
 
     private static func uninstallHooks(cli: CLIConfig, fm: FileManager) {
@@ -709,17 +407,13 @@ struct ConfigInstaller {
 
     /// Check if a hook entry contains our hook command
     private static func containsOurHook(_ entry: [String: Any]) -> Bool {
-        // Claude/nested format: entry.hooks[].command
+        // Claude format: entry.hooks[].command
         if let hookList = entry["hooks"] as? [[String: Any]] {
             return hookList.contains {
                 let cmd = $0["command"] as? String ?? ""
                 return HookId.isOurs(cmd)
             }
         }
-        // Flat format: entry.command
-        if let cmd = entry["command"] as? String, HookId.isOurs(cmd) { return true }
-        // Copilot format: entry.bash
-        if let cmd = entry["bash"] as? String, HookId.isOurs(cmd) { return true }
         return false
     }
 
@@ -730,7 +424,6 @@ struct ConfigInstaller {
         if fm.fileExists(atPath: hookScriptPath) {
             if let existing = fm.contents(atPath: hookScriptPath),
                let str = String(data: existing, encoding: .utf8) {
-                // Update if script doesn't contain bridge dispatcher OR version is outdated
                 let hasCurrentVersion = str.contains("# CodeIsland hook v\(hookScriptVersion)")
                 needsUpdate = !hasCurrentVersion
             } else {
@@ -775,81 +468,5 @@ struct ConfigInstaller {
     /// Copied binaries inherit quarantine from the source app bundle.
     private static func stripQuarantine(_ path: String) {
         removexattr(path, "com.apple.quarantine", 0)
-    }
-
-    // MARK: - OpenCode Plugin
-
-    /// The JS plugin source — embedded as resource or bundled alongside
-    private static func opencodePluginSource() -> String? {
-        // Try SPM resource bundle (where build actually places it)
-        if let url = Bundle.module.url(forResource: "codeisland-opencode", withExtension: "js", subdirectory: "Resources"),
-           let src = try? String(contentsOf: url) { return src }
-        // Fallback: try without subdirectory
-        if let url = Bundle.module.url(forResource: "codeisland-opencode", withExtension: "js"),
-           let src = try? String(contentsOf: url) { return src }
-        return nil
-    }
-
-    @discardableResult
-    private static func installOpencodePlugin(fm: FileManager) -> Bool {
-        // Only install if opencode config dir exists
-        let configDir = (opencodeConfigPath as NSString).deletingLastPathComponent
-        guard fm.fileExists(atPath: configDir) else { return true } // not installed, skip silently
-
-        // Clean up old vibe-island plugin
-        let oldPlugin = opencodePluginDir + "/vibe-island.js"
-        if fm.fileExists(atPath: oldPlugin) { try? fm.removeItem(atPath: oldPlugin) }
-
-        // Write plugin JS
-        guard let source = opencodePluginSource() else { return false }
-        try? fm.createDirectory(atPath: opencodePluginDir, withIntermediateDirectories: true)
-        guard fm.createFile(atPath: opencodePluginPath, contents: Data(source.utf8)) else { return false }
-
-        // Register in opencode config.json
-        let pluginRef = "file://\(opencodePluginPath)"
-        var config: [String: Any] = [:]
-        if let data = fm.contents(atPath: opencodeConfigPath),
-           let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-            config = parsed
-        }
-        var plugins = config["plugin"] as? [String] ?? []
-        // Remove old vibe-island entries and any stale codeisland entries
-        plugins.removeAll { $0.contains("vibe-island") || $0.contains(HookId.current) }
-        plugins.append(pluginRef)
-        config["plugin"] = plugins
-        if let data = try? JSONSerialization.data(withJSONObject: config, options: [.prettyPrinted, .sortedKeys]) {
-            fm.createFile(atPath: opencodeConfigPath, contents: data)
-        }
-        return true
-    }
-
-    private static func uninstallOpencodePlugin(fm: FileManager) {
-        try? fm.removeItem(atPath: opencodePluginPath)
-        // Remove from config
-        guard let data = fm.contents(atPath: opencodeConfigPath),
-              var config = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              var plugins = config["plugin"] as? [String] else { return }
-        plugins.removeAll { $0.contains(HookId.current) }
-        config["plugin"] = plugins.isEmpty ? nil : plugins
-        if let data = try? JSONSerialization.data(withJSONObject: config, options: [.prettyPrinted, .sortedKeys]) {
-            fm.createFile(atPath: opencodeConfigPath, contents: data)
-        }
-    }
-
-    /// Current OpenCode plugin version — bump when codeisland-opencode.js changes
-    private static let opencodePluginVersion = "v2"
-
-    private static func isOpencodePluginInstalled(fm: FileManager) -> Bool {
-        guard fm.fileExists(atPath: opencodePluginPath),
-              let data = fm.contents(atPath: opencodeConfigPath),
-              let config = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let plugins = config["plugin"] as? [String] else { return false }
-        guard plugins.contains(where: { $0.contains(HookId.current) }) else { return false }
-        // Check version: if installed plugin is outdated, report as not installed to trigger update
-        if let existing = fm.contents(atPath: opencodePluginPath),
-           let str = String(data: existing, encoding: .utf8) {
-            return str.contains("// version: \(opencodePluginVersion)")
-        }
-        return false
     }
 }

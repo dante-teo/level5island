@@ -141,7 +141,7 @@ class HookServer {
                 }
                 self.sendResponse(connection: connection, data: responseBody)
             }
-        } else if EventNormalizer.normalize(event.eventName) == "Notification",
+        } else if event.eventName == "Notification",
                   QuestionPayload.from(event: event) != nil {
             let questionSessionId = event.sessionId ?? "default"
             monitorPeerDisconnect(connection: connection, sessionId: questionSessionId)

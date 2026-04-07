@@ -17,47 +17,11 @@ struct TerminalActivator {
         ("Terminal", "com.apple.Terminal"),
     ]
 
-    /// Fallback: source-based app jump for CLIs with NO terminal mode.
-    /// Most sources should use nativeAppBundles instead (by bundle ID).
-    private static let appSources: [String: String] = [:]
-
-    /// Bundle IDs of apps that have both APP and CLI modes.
-    /// When termBundleId matches, bring that app to front;
-    /// otherwise fall through to terminal tab-matching.
-    private static let nativeAppBundles: [String: String] = [
-        "com.openai.codex": "Codex",
-        "com.todesktop.230313mzl4w4u92": "Cursor",
-        "com.qoder.ide": "Qoder",
-        "com.factory.app": "Factory",
-        "com.tencent.codebuddy": "CodeBuddy",
-        "ai.opencode.desktop": "OpenCode",
-    ]
-
     static func activate(session: SessionSnapshot, sessionId: String? = nil) {
-        // Native app by bundle ID (e.g. Codex APP vs Codex CLI)
-        if let bundleId = session.termBundleId,
-           nativeAppBundles[bundleId] != nil {
-            activateByBundleId(bundleId)
-            return
-        }
-
         // IDE integrated terminal: bring the IDE to front (no tab-level switching)
         if session.isIDETerminal,
            let bundleId = session.termBundleId {
             activateByBundleId(bundleId)
-            return
-        }
-
-        // IDE sources: just bring the app to front
-        if let appName = appSources[session.source] {
-            if let app = NSWorkspace.shared.runningApplications.first(where: {
-                $0.localizedName == appName
-            }) {
-                if app.isHidden { app.unhide() }
-                app.activate()
-            } else {
-                bringToFront(appName)
-            }
             return
         }
 

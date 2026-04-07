@@ -860,10 +860,8 @@ private struct QuestionBar: View {
             // Session context
             if sessionSource != nil || sessionContext != nil {
                 HStack(spacing: 5) {
-                    if let src = sessionSource, let icon = cliIcon(source: src, size: 12) {
-                        Image(nsImage: icon)
-                            .resizable()
-                            .frame(width: 12, height: 12)
+                    if sessionSource != nil {
+                        ClaudeSparkIcon(size: 12)
                     }
                     if let cwd = sessionContext {
                         Image(systemName: "folder.fill")
@@ -1086,14 +1084,6 @@ private struct SessionListView: View {
         case "cli":
             let cliOrder: [(source: String, name: String)] = [
                 ("claude", "Claude"),
-                ("codex", "Codex"),
-                ("gemini", "Gemini"),
-                ("cursor", "Cursor"),
-                ("copilot", "Copilot"),
-                ("qoder", "Qoder"),
-                ("droid", "Factory"),
-                ("codebuddy", "CodeBuddy"),
-                ("opencode", "OpenCode"),
             ]
             var result: [(String, String?, [String])] = []
             var seen = Set<String>()
@@ -1126,10 +1116,8 @@ private struct SessionListView: View {
             ForEach(groups, id: \.header) { group in
                 if !group.header.isEmpty {
                     HStack(spacing: 6) {
-                        if let src = group.source, let icon = cliIcon(source: src) {
-                            Image(nsImage: icon)
-                                .resizable()
-                                .frame(width: 14, height: 14)
+                        if group.source != nil {
+                            ClaudeSparkIcon(size: 14)
                         }
                         Text(group.header)
                             .font(.system(size: 11, weight: .medium, design: .monospaced))
@@ -1400,9 +1388,6 @@ private struct SessionCard: View {
                     HStack(spacing: 4) {
                         if session.interrupted {
                             SessionTag("INT", color: Color(red: 1.0, green: 0.6, blue: 0.2))
-                        }
-                        if session.isYoloMode == true {
-                            SessionTag("YOLO", color: Color(red: 1.0, green: 0.35, blue: 0.35))
                         }
                         SessionTag(timeAgo(session.startTime))
                         TerminalJumpButton(session: session, sessionId: sessionId)
@@ -1710,20 +1695,10 @@ private struct TerminalJumpButton: View {
 
     private let green = Color(red: 0.3, green: 0.85, blue: 0.4)
 
-    /// Known bundle IDs for IDE/app sources
-    private static let sourceBundleIds: [String: String] = [
-        "cursor": "com.todesktop.230313mzl4w4u92",
-        "qoder": "com.qoder.ide",
-        "droid": "com.factory.app",
-        "codebuddy": "com.tencent.codebuddy",
-        "codex": "com.openai.codex",
-        "opencode": "ai.opencode.desktop",
-    ]
-
     private static var termIconCache: [String: NSImage] = [:]
 
     private var termIcon: NSImage? {
-        let bid = session.termBundleId ?? Self.sourceBundleIds[session.source]
+        let bid = session.termBundleId
         guard let bid else { return nil }
         if let cached = Self.termIconCache[bid] { return cached }
         guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bid)
@@ -1858,30 +1833,44 @@ private struct Line: Shape {
 
 // MARK: - Shared Helpers
 
-private let cliIconFiles: [String: String] = [
-    "claude": "claude",
-    "codex": "codex",
-    "gemini": "gemini",
-    "cursor": "cursor",
-    "copilot": "copilot",
-    "qoder": "qoder",
-    "droid": "factory",
-    "codebuddy": "codebuddy",
-    "opencode": "opencode",
-]
+// MARK: - Claude Spark Icon (pixel art)
 
-private var cliIconCache: [String: NSImage] = [:]
+/// Pixel-art Claude asterisk/spark mark drawn via Canvas.
+struct ClaudeSparkIcon: View {
+    var size: CGFloat = 16
 
-func cliIcon(source: String, size: CGFloat = 16) -> NSImage? {
-    let key = "\(source)_\(Int(size))"
-    if let cached = cliIconCache[key] { return cached }
-    guard let filename = cliIconFiles[source],
-          let url = Bundle.module.url(forResource: filename, withExtension: "png", subdirectory: "Resources/cli-icons"),
-          let image = NSImage(contentsOf: url)
-    else { return nil }
-    image.size = NSSize(width: size, height: size)
-    cliIconCache[key] = image
-    return image
+    // Claude brand terracotta
+    private let spark = Color(red: 0.871, green: 0.533, blue: 0.427) // #DE886D
+    private let bright = Color(red: 0.95, green: 0.65, blue: 0.55)
+
+    // 7×7 grid: 0=empty, 1=body, 2=bright highlight
+    private static let grid: [[Int]] = [
+        [0, 0, 0, 2, 0, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0],
+        [0, 0, 1, 1, 1, 0, 0],
+        [1, 1, 1, 2, 1, 1, 1],
+        [0, 0, 1, 1, 1, 0, 0],
+        [0, 0, 0, 1, 0, 0, 0],
+        [0, 0, 0, 2, 0, 0, 0],
+    ]
+
+    var body: some View {
+        Canvas { ctx, sz in
+            let px = sz.width / 7
+            for row in 0..<7 {
+                for col in 0..<7 {
+                    let v = Self.grid[row][col]
+                    guard v != 0 else { continue }
+                    let color: Color = v == 2 ? bright : spark
+                    ctx.fill(
+                        Path(CGRect(x: CGFloat(col) * px, y: CGFloat(row) * px, width: px, height: px)),
+                        with: .color(color)
+                    )
+                }
+            }
+        }
+        .frame(width: size, height: size)
+    }
 }
 
 private struct SessionTag: View {

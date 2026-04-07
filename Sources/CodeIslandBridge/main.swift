@@ -83,12 +83,6 @@ func debugLog(_ message: String) {
     }
 }
 
-func nonEmptyString(_ value: Any?) -> String? {
-    guard let raw = value as? String else { return nil }
-    let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-    return trimmed.isEmpty ? nil : trimmed
-}
-
 func connectSocket(_ path: String) -> Int32? {
     let sock = socket(AF_UNIX, SOCK_STREAM, 0)
     guard sock >= 0 else { return nil }
@@ -178,17 +172,6 @@ let socketPath = SocketPath.path
 let env = ProcessInfo.processInfo.environment
 let args = CommandLine.arguments
 
-// Parse --source flag (e.g. --source codex)
-var sourceTag: String? = nil
-if let idx = args.firstIndex(of: "--source"), idx + 1 < args.count {
-    sourceTag = args[idx + 1]
-}
-
-// Parse --event flag (e.g. --event sessionStart) for CLIs that lack hook_event_name in stdin
-var eventTag: String? = nil
-if let idx = args.firstIndex(of: "--event"), idx + 1 < args.count {
-    eventTag = args[idx + 1]
-}
 
 // Quick exit: skip if CODEISLAND_SKIP is set
 guard env["CODEISLAND_SKIP"] == nil else { exit(0) }
@@ -208,26 +191,6 @@ guard !input.isEmpty,
     exit(0)
 }
 
-// Copilot CLI adaptation: its stdin JSON lacks session_id and hook_event_name.
-// Normalize Copilot's camelCase payload and pass through sessionId when present.
-if sourceTag == "copilot" {
-    if json["hook_event_name"] == nil, let event = eventTag {
-        json["hook_event_name"] = event
-    }
-    if json["session_id"] == nil, let sessionId = nonEmptyString(json["sessionId"]) {
-        json["session_id"] = sessionId
-    }
-    // Map Copilot-specific field names to internal conventions
-    if let toolName = json["toolName"] as? String {
-        json["tool_name"] = toolName
-    }
-    if let toolArgsStr = json["toolArgs"] as? String,
-       let argsData = toolArgsStr.data(using: .utf8),
-       let argsObj = try? JSONSerialization.jsonObject(with: argsData) as? [String: Any] {
-        json["tool_input"] = argsObj
-    }
-}
-
 // Validate: must have non-empty session_id
 guard let sessionId = json["session_id"] as? String, !sessionId.isEmpty else {
     debugLog("no session_id, dropping")
@@ -237,7 +200,7 @@ guard let sessionId = json["session_id"] as? String, !sessionId.isEmpty else {
 // Event type detection
 let eventName = json["hook_event_name"] as? String ?? ""
 let isPermission = eventName == "PermissionRequest"
-let isQuestion = (eventName == "Notification" || eventName == "afterAgentThought")
+let isQuestion = (eventName == "Notification")
     && json["question"] as? String != nil
 let isBlocking = isPermission || isQuestion
 
@@ -289,12 +252,7 @@ if !tty.isEmpty {
     json["_tty"] = tty
 }
 
-// Source tag (e.g. "codex" when called via --source codex)
-if let source = sourceTag {
-    json["_source"] = source
-}
-
-// Parent PID — the CLI process that spawned this hook (works for any CLI)
+// Parent PID — the CLI process that spawned this hook
 json["_ppid"] = getppid()
 
 // --- Serialize enriched JSON ---

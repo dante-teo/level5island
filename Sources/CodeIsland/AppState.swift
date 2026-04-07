@@ -400,13 +400,6 @@ final class AppState {
 
         let sessionId = event.sessionId ?? "default"
 
-        // Skip Codex APP internal sessions (title generation, etc.) — they have no transcript
-        if (event.rawJSON["_source"] as? String) == "codex"
-            && sessions[sessionId] == nil
-            && event.rawJSON["transcript_path"] is NSNull {
-            return
-        }
-
         if sessions[sessionId] == nil {
             sessions[sessionId] = SessionSnapshot()
         }
@@ -427,7 +420,7 @@ final class AppState {
         // If session was waiting but received an activity event, the question/permission
         // was answered externally (e.g. user replied in terminal). Clear pending items.
         if wasWaiting {
-            let en = EventNormalizer.normalize(event.eventName)
+            let en = event.eventName
             // Events that should NOT clear waiting state
             let keepWaiting: Set<String> = ["Notification", "SessionStart", "SessionEnd", "PreCompact"]
             if !keepWaiting.contains(en) {
@@ -443,12 +436,6 @@ final class AppState {
             }
         }
 
-        // Detect Cursor YOLO mode once per session (nil = unchecked)
-        if event.rawJSON["_source"] as? String == "cursor",
-           sessions[sessionId]?.isYoloMode == nil {
-            sessions[sessionId]?.isYoloMode = Self.detectCursorYoloMode()
-        }
-
         for effect in effects {
             executeEffect(effect, sessionId: sessionId)
         }
@@ -461,7 +448,7 @@ final class AppState {
         // Handle the "else if activeSessionId == sessionId → mostActive" edge case
         // (reducer can't check activeSessionId since it's AppState-local)
         if sessions[sessionId]?.status == .idle && activeSessionId == sessionId {
-            let eventName = EventNormalizer.normalize(event.eventName)
+            let eventName = event.eventName
             if eventName != "Stop" {
                 activeSessionId = mostActiveSessionId()
             }
@@ -773,21 +760,6 @@ final class AppState {
         return (bestNonIdle ?? bestAny)?.key
     }
 
-    /// Check if Cursor is in YOLO mode by reading its settings
-    private static func detectCursorYoloMode() -> Bool {
-        let settingsPath = NSHomeDirectory() + "/Library/Application Support/Cursor/User/settings.json"
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: settingsPath),
-              let data = fm.contents(atPath: settingsPath),
-              let str = String(data: data, encoding: .utf8) else { return false }
-        let stripped = ConfigInstaller.stripJSONComments(str)
-        guard let strippedData = stripped.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: strippedData) as? [String: Any] else { return false }
-        if json["cursor.general.yoloMode"] as? Bool == true { return true }
-        if json["cursor.agent.enableYoloMode"] as? Bool == true { return true }
-        return false
-    }
-
     /// Read model from session transcript file
     private static func readModelFromTranscript(sessionId: String, cwd: String?) -> String? {
         guard let cwd = cwd else { return nil }
@@ -895,13 +867,11 @@ final class AppState {
         // Restore persisted sessions before process scan (deduped by scan)
         restoreSessions()
 
-        // Initial scan for already-running sessions (Claude + Codex), respecting user toggles
+        // Initial scan for already-running Claude sessions
         Task.detached {
             let claudeSessions = ConfigInstaller.isEnabled(source: "claude") ? Self.findActiveClaudeSessions() : []
-            let codexSessions = ConfigInstaller.isEnabled(source: "codex") ? Self.findActiveCodexSessions() : []
             await MainActor.run { [weak self] in
                 self?.integrateDiscovered(claudeSessions)
-                self?.integrateDiscovered(codexSessions)
             }
         }
         // Start watching ~/.claude/projects/ for new session files
@@ -948,10 +918,8 @@ final class AppState {
             self.lastFSScanTime = Date()
             Task.detached {
                 let claudeSessions = ConfigInstaller.isEnabled(source: "claude") ? Self.findActiveClaudeSessions() : []
-                let codexSessions = ConfigInstaller.isEnabled(source: "codex") ? Self.findActiveCodexSessions() : []
                 await MainActor.run { [weak self] in
                     self?.integrateDiscovered(claudeSessions)
-                    self?.integrateDiscovered(codexSessions)
                 }
             }
         }
@@ -973,8 +941,8 @@ final class AppState {
             }
 
             // Dedup: if a hook-created session already exists with same source + cwd + pid,
-            // skip the discovered one to avoid duplicate entries (e.g. Codex hooks vs
-            // file-based discovery produce different session IDs for the same process).
+            // skip the discovered one to avoid duplicate entries (hooks vs
+            // file-based discovery may produce different session IDs for the same process).
             // Only dedup when PID matches (or discovered has no PID), so concurrent
             // sessions in the same repo aren't incorrectly merged.
             let duplicateKey = sessions.first(where: { (_, existing) in
@@ -1053,7 +1021,7 @@ final class AppState {
         let pid: pid_t?
         let modifiedAt: Date
         let recentMessages: [ChatMessage]
-        var source: String = "claude"  // "claude" or "codex"
+        var source: String = "claude"
     }
 
     /// Find running `claude` processes, match to transcript files, extract recent messages
@@ -1175,286 +1143,6 @@ final class AppState {
         return Date(timeIntervalSince1970: TimeInterval(info.pbi_start_tvsec))
     }
 
-    // MARK: - Codex Session Discovery
-
-    /// Find running Codex processes.
-    /// Checks both executable path (Desktop app) and command-line args (npm/Homebrew: node script).
-    private nonisolated static func findCodexPids() -> [pid_t] {
-        var bufferSize = proc_listpids(UInt32(PROC_ALL_PIDS), 0, nil, 0)
-        guard bufferSize > 0 else { return [] }
-        var pids = [pid_t](repeating: 0, count: Int(bufferSize) / MemoryLayout<pid_t>.size + 10)
-        bufferSize = proc_listpids(UInt32(PROC_ALL_PIDS), 0, &pids, bufferSize)
-        let count = Int(bufferSize) / MemoryLayout<pid_t>.size
-
-        var codexPids: [pid_t] = []
-        var pathBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
-
-        for i in 0..<count {
-            let pid = pids[i]
-            guard pid > 0 else { continue }
-            let len = proc_pidpath(pid, &pathBuffer, UInt32(pathBuffer.count))
-            guard len > 0 else { continue }
-            let path = String(cString: pathBuffer)
-            let pathLower = path.lowercased()
-
-            // Match 1: Codex Desktop app (native binary)
-            if pathLower.contains("codex.app/contents/") && pathLower.hasSuffix("/codex") {
-                codexPids.append(pid)
-                continue
-            }
-
-            // Match 2: npm/Homebrew install — node running @openai/codex script.
-            // proc_pidpath returns the node binary, so check command-line args instead.
-            if pathLower.hasSuffix("/node") {
-                if let args = getProcessArgs(pid),
-                   args.contains(where: { $0.contains("@openai/codex") || $0.contains("openai-codex") }) {
-                    codexPids.append(pid)
-                }
-            }
-        }
-        return codexPids
-    }
-
-    /// Get command-line arguments for a process via sysctl KERN_PROCARGS2.
-    private nonisolated static func getProcessArgs(_ pid: pid_t) -> [String]? {
-        var mib = [CTL_KERN, KERN_PROCARGS2, pid]
-        var size = 0
-        guard sysctl(&mib, 3, nil, &size, nil, 0) == 0, size > 0 else { return nil }
-        var buffer = [UInt8](repeating: 0, count: size)
-        guard sysctl(&mib, 3, &buffer, &size, nil, 0) == 0 else { return nil }
-
-        // First 4 bytes = argc (as int32)
-        guard size > MemoryLayout<Int32>.size else { return nil }
-        let argc = buffer.withUnsafeBytes { $0.load(as: Int32.self) }
-        guard argc > 0, argc < 256 else { return nil }
-
-        // Skip past argc + executable path + padding nulls to reach argv
-        var offset = MemoryLayout<Int32>.size
-        // Skip executable path
-        while offset < size && buffer[offset] != 0 { offset += 1 }
-        // Skip null padding
-        while offset < size && buffer[offset] == 0 { offset += 1 }
-
-        // Parse null-terminated argv strings
-        var args: [String] = []
-        var argStart = offset
-        for _ in 0..<argc {
-            while offset < size && buffer[offset] != 0 { offset += 1 }
-            if offset > argStart {
-                args.append(String(bytes: buffer[argStart..<offset], encoding: .utf8) ?? "")
-            }
-            offset += 1
-            argStart = offset
-        }
-        return args
-    }
-
-    /// Find active Codex sessions by matching running processes to session files
-    private nonisolated static func findActiveCodexSessions() -> [DiscoveredSession] {
-        let codexPids = findCodexPids()
-        guard !codexPids.isEmpty else { return [] }
-
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
-        let fm = FileManager.default
-        let sessionsBase = "\(home)/.codex/sessions"
-        guard fm.fileExists(atPath: sessionsBase) else { return [] }
-
-        var results: [DiscoveredSession] = []
-        var seenSessionIds: Set<String> = []
-
-        for pid in codexPids {
-            guard let cwd = getCwd(for: pid), !cwd.isEmpty else {
-                // getCwd failed
-                continue
-            }
-            // pid found
-            let processStart = getProcessStartTime(pid)
-
-            // Codex stores sessions in date-based dirs: ~/.codex/sessions/YYYY/MM/DD/rollout-*.jsonl
-            // Scan recent directories for matching session files
-            guard let bestFile = findRecentCodexSession(base: sessionsBase, cwd: cwd, after: processStart, fm: fm) else {
-                // no session file found
-                continue
-            }
-
-            // Extract session ID from filename: rollout-{date}-{uuid}.jsonl
-            let fileName = (bestFile as NSString).lastPathComponent
-            let sessionId = extractCodexSessionId(from: fileName)
-            guard !sessionId.isEmpty, !seenSessionIds.contains(sessionId) else { continue }
-            seenSessionIds.insert(sessionId)
-
-            let modifiedAt = (try? fm.attributesOfItem(atPath: bestFile))?[.modificationDate] as? Date ?? Date()
-
-            // Skip stale transcripts (same as Claude: 5 min freshness filter)
-            if modifiedAt.timeIntervalSinceNow < -300 { continue }
-
-            let (model, messages) = readRecentFromCodexTranscript(path: bestFile)
-
-            results.append(DiscoveredSession(
-                sessionId: sessionId,
-                cwd: cwd,
-                tty: nil,
-                model: model,
-                pid: pid,
-                modifiedAt: modifiedAt,
-                recentMessages: messages,
-                source: "codex"
-            ))
-        }
-        return results
-    }
-
-    /// Find the most recent Codex session file matching a CWD
-    /// Scans back up to 7 days to cover long-running sessions that span day boundaries
-    private nonisolated static func findRecentCodexSession(base: String, cwd: String, after: Date?, fm: FileManager) -> String? {
-        let cal = Calendar.current
-        let now = Date()
-        var dirs: [String] = []
-        for daysBack in 0..<7 {
-            guard let date = cal.date(byAdding: .day, value: -daysBack, to: now) else { continue }
-            let y = String(format: "%04d", cal.component(.year, from: date))
-            let m = String(format: "%02d", cal.component(.month, from: date))
-            let d = String(format: "%02d", cal.component(.day, from: date))
-            let dir = "\(base)/\(y)/\(m)/\(d)"
-            if fm.fileExists(atPath: dir) {
-                dirs.append(dir)
-            }
-        }
-        guard !dirs.isEmpty else { return nil }
-        return scanCodexDir(dirs: dirs, cwd: cwd, after: after, fm: fm)
-    }
-
-    private nonisolated static func scanCodexDir(dirs: [String], cwd: String, after: Date?, fm: FileManager) -> String? {
-        for dir in dirs {
-            guard let files = try? fm.contentsOfDirectory(atPath: dir) else { continue }
-            // Sort descending to check newest first
-            let jsonlFiles = files.filter { $0.hasSuffix(".jsonl") }.sorted(by: >)
-
-            for file in jsonlFiles.prefix(20) {
-                let fullPath = "\(dir)/\(file)"
-                if let start = after,
-                   let attrs = try? fm.attributesOfItem(atPath: fullPath),
-                   let modified = attrs[.modificationDate] as? Date,
-                   modified < start.addingTimeInterval(-10) {
-                    continue
-                }
-                if codexSessionMatchesCwd(path: fullPath, cwd: cwd) {
-                    return fullPath
-                }
-            }
-        }
-        return nil
-    }
-
-    /// Check if a Codex session file's CWD matches the target
-    private nonisolated static func codexSessionMatchesCwd(path: String, cwd: String) -> Bool {
-        guard let handle = FileHandle(forReadingAtPath: path) else { return false }
-        defer { handle.closeFile() }
-        let data = handle.readData(ofLength: 4096) // First line is enough
-        guard let text = String(data: data, encoding: .utf8),
-              let firstLine = text.components(separatedBy: "\n").first,
-              let lineData = firstLine.data(using: .utf8),
-              let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any],
-              let payload = json["payload"] as? [String: Any],
-              let sessionCwd = payload["cwd"] as? String else { return false }
-        return sessionCwd == cwd
-    }
-
-    /// Extract session ID from Codex filename: rollout-2026-04-04T20-54-48-{uuid}.jsonl
-    private nonisolated static func extractCodexSessionId(from filename: String) -> String {
-        // Format: rollout-YYYY-MM-DDThh-mm-ss-{uuid}.jsonl
-        let name = filename.replacingOccurrences(of: ".jsonl", with: "")
-        // The UUID is the last 36 chars (8-4-4-4-12)
-        // Pattern: after the datetime portion, everything from the 4th dash group onwards is the UUID
-        let parts = name.split(separator: "-")
-        // rollout-YYYY-MM-DDThh-mm-ss-{8}-{4}-{4}-{4}-{12}
-        // That's: [rollout, YYYY, MM, DDThh, mm, ss, uuid1, uuid2, uuid3, uuid4, uuid5]
-        if parts.count >= 11 {
-            return parts.suffix(5).joined(separator: "-")
-        }
-        return name
-    }
-
-    /// Read model and recent messages from a Codex transcript file
-    private nonisolated static func readRecentFromCodexTranscript(path: String) -> (String?, [ChatMessage]) {
-        guard let handle = FileHandle(forReadingAtPath: path) else { return (nil, []) }
-        defer { handle.closeFile() }
-
-        let fileSize = handle.seekToEndOfFile()
-        let readSize: UInt64 = min(fileSize, 65536)
-        handle.seek(toFileOffset: fileSize - readSize)
-        let data = handle.readDataToEndOfFile()
-        guard let text = String(data: data, encoding: .utf8) else { return (nil, []) }
-
-        var model: String?
-        var userMessages: [(Int, String)] = []
-        var assistantMessages: [(Int, String)] = []
-        var index = 0
-
-        for line in text.components(separatedBy: "\n") {
-            guard !line.isEmpty,
-                  let lineData = line.data(using: .utf8),
-                  let json = try? JSONSerialization.jsonObject(with: lineData) as? [String: Any] else { continue }
-
-            let type = json["type"] as? String ?? ""
-
-            // Extract model from session_meta
-            if type == "session_meta", model == nil,
-               let payload = json["payload"] as? [String: Any] {
-                model = payload["model"] as? String
-                    ?? payload["model_provider"] as? String
-            }
-
-            // Prefer event_msg (cleaner user/agent messages from Codex)
-            if type == "event_msg",
-               let payload = json["payload"] as? [String: Any],
-               let msgType = payload["type"] as? String,
-               let msg = payload["message"] as? String, !msg.isEmpty {
-                if msgType == "user_message" {
-                    userMessages.append((index, msg))
-                } else if msgType == "agent_message" {
-                    assistantMessages.append((index, msg))
-                }
-            }
-
-            // Fallback: extract from response_item only if event_msg didn't provide the same content
-            // (user messages come from event_msg which is cleaner — response_item user entries
-            //  often contain injected system/tool context, not actual user input)
-            if type == "response_item",
-               let payload = json["payload"] as? [String: Any],
-               let role = payload["role"] as? String {
-
-                if let content = payload["content"] as? [[String: Any]] {
-                    for item in content {
-                        let itemType = item["type"] as? String ?? ""
-                        if let t = item["text"] as? String, !t.isEmpty {
-                            if role == "user" && itemType == "input_text" && userMessages.isEmpty {
-                                // Only use response_item for user messages if no event_msg was found
-                                userMessages.append((index, t))
-                            } else if role == "assistant" && itemType == "output_text" && assistantMessages.last?.1 != t {
-                                // Only add if not a duplicate of the last event_msg entry
-                                assistantMessages.append((index, t))
-                            }
-                            break
-                        }
-                    }
-                }
-            }
-            index += 1
-        }
-
-        var combined: [(Int, ChatMessage)] = []
-        for (i, text) in userMessages.suffix(3) {
-            combined.append((i, ChatMessage(isUser: true, text: text)))
-        }
-        for (i, text) in assistantMessages.suffix(3) {
-            combined.append((i, ChatMessage(isUser: false, text: text)))
-        }
-        combined.sort { $0.0 < $1.0 }
-        let recent = Array(combined.suffix(3).map { $0.1 })
-
-        return (model, recent)
-    }
 
     /// Read model and last 3 user/assistant messages from a transcript file's tail
     private nonisolated static func readRecentFromTranscript(path: String) -> (String?, [ChatMessage]) {
