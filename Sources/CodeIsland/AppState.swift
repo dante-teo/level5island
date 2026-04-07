@@ -41,7 +41,6 @@ final class AppState {
     /// Mouse must enter the panel before auto-collapse is allowed (prevents instant dismiss)
     var completionHasBeenEntered = false
     private var processMonitors: [String: (source: DispatchSourceProcess, pid: pid_t)] = [:]
-    private var saveTimer: Timer?
     private var fsEventStream: FSEventStreamRef?
     private var lastFSScanTime: Date = .distantPast
     private var isShowingCompletion: Bool {
@@ -59,8 +58,9 @@ final class AppState {
 
     private func startCleanupTimer() {
         cleanupTimer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
+            guard let self else { return }
             Task { @MainActor in
-                self?.cleanupIdleSessions()
+                self.cleanupIdleSessions()
             }
         }
     }
@@ -201,8 +201,9 @@ final class AppState {
             }
             if rotationTimer == nil {
                 rotationTimer = Timer.scheduledTimer(withTimeInterval: 3.0, repeats: true) { [weak self] _ in
+                    guard let self else { return }
                     Task { @MainActor in
-                        self?.rotateToNextSession()
+                        self.rotateToNextSession()
                     }
                 }
             }
@@ -459,7 +460,6 @@ final class AppState {
             }
         }
 
-        scheduleSave()
         startRotationIfNeeded()
         refreshDerivedState()
     }
@@ -799,88 +799,8 @@ final class AppState {
 
     // MARK: - Session Discovery (FSEventStream + process scan)
 
-    /// Start continuous monitoring: initial process scan + FSEventStream on ~/.claude/projects/
-    // MARK: - Session Persistence
-
-    private func scheduleSave() {
-        saveTimer?.invalidate()
-        saveTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: false) { [weak self] _ in
-            Task { @MainActor in
-                self?.saveSessions()
-            }
-        }
-    }
-
-    func saveSessions() {
-        SessionPersistence.save(sessions)
-    }
-
-    private func restoreSessions() {
-        let persisted = SessionPersistence.load()
-        let cutoff = Date().addingTimeInterval(-30 * 60) // 30 minutes
-        for p in persisted where p.lastActivity > cutoff {
-            guard sessions[p.sessionId] == nil else { continue }
-            guard let source = SessionSnapshot.normalizedSupportedSource(p.source) else { continue }
-            var snapshot = SessionSnapshot(startTime: p.startTime)
-            snapshot.cwd = p.cwd
-            snapshot.source = source
-            snapshot.model = p.model
-            snapshot.sessionTitle = p.sessionTitle
-            snapshot.sessionTitleSource = p.sessionTitleSource
-            snapshot.providerSessionId = p.providerSessionId
-            snapshot.lastUserPrompt = p.lastUserPrompt
-            snapshot.lastAssistantMessage = p.lastAssistantMessage
-            if let prompt = p.lastUserPrompt {
-                snapshot.addRecentMessage(ChatMessage(isUser: true, text: prompt))
-            }
-            if let reply = p.lastAssistantMessage {
-                snapshot.addRecentMessage(ChatMessage(isUser: false, text: reply))
-            }
-            snapshot.termApp = p.termApp
-            snapshot.itermSessionId = p.itermSessionId
-            snapshot.ttyPath = p.ttyPath
-            snapshot.kittyWindowId = p.kittyWindowId
-            snapshot.tmuxPane = p.tmuxPane
-            snapshot.tmuxClientTty = p.tmuxClientTty
-            snapshot.termBundleId = p.termBundleId
-            snapshot.lastActivity = p.lastActivity
-            // Restore persisted cliPid — enables immediate process monitoring for all CLIs
-            if let pid = p.cliPid, pid > 0 {
-                snapshot.cliPid = pid
-            }
-            sessions[p.sessionId] = snapshot
-            refreshProviderTitle(for: p.sessionId)
-            // Attach process monitor for exit detection, but keep status idle —
-            // actual status will be updated when the next hook event arrives.
-            if let pid = snapshot.cliPid, pid > 0, kill(pid, 0) == 0 {
-                monitorProcess(sessionId: p.sessionId, pid: pid)
-            } else {
-                // Async fallback: scan for Claude processes by CWD (monitor only)
-                let sid = p.sessionId
-                Task.detached {
-                    let pid = Self.findPidForCwd(snapshot.cwd ?? "")
-                    await MainActor.run { [weak self] in
-                        guard let self = self, let pid = pid,
-                              self.sessions[sid] != nil,
-                              self.processMonitors[sid] == nil else { return }
-                        self.monitorProcess(sessionId: sid, pid: pid)
-                        self.refreshDerivedState()
-                    }
-                }
-            }
-        }
-        SessionPersistence.clear()
-        if activeSessionId == nil {
-            activeSessionId = sessions.first(where: { $0.value.status != .idle })?.key
-                ?? sessions.keys.sorted().first
-        }
-        refreshDerivedState()
-    }
-
     func startSessionDiscovery() {
         startCleanupTimer()
-        // Restore persisted sessions before process scan (deduped by scan)
-        restoreSessions()
 
         // Initial scan for already-running Claude sessions
         Task.detached {
@@ -1018,7 +938,6 @@ final class AppState {
         MainActor.assumeIsolated {
             rotationTimer?.invalidate()
             cleanupTimer?.invalidate()
-            saveTimer?.invalidate()
             if let stream = fsEventStream {
                 FSEventStreamStop(stream)
                 FSEventStreamInvalidate(stream)

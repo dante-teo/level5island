@@ -185,12 +185,13 @@ class PanelWindowController: NSObject, NSWindowDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
+            guard let self else { return }
             Task { @MainActor in
-                self?.refreshCurrentScreen(forceRebuild: true)
+                self.refreshCurrentScreen(forceRebuild: true)
                 // macOS may not have finished updating NSScreen.screens when the notification fires.
                 // Rebuild again after a short delay to pick up the final screen configuration.
                 try? await Task.sleep(nanoseconds: 500_000_000)
-                self?.refreshCurrentScreen(forceRebuild: true)
+                self.refreshCurrentScreen(forceRebuild: true)
             }
         }
 
@@ -200,8 +201,8 @@ class PanelWindowController: NSObject, NSWindowDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
+            guard let self else { return }
             Task { @MainActor in
-                guard let self = self else { return }
                 self.refreshCurrentScreen()
                 if self.isActiveSpaceFullscreen() {
                     self.fullscreenLatch = true
@@ -220,8 +221,8 @@ class PanelWindowController: NSObject, NSWindowDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
+            guard let self else { return }
             Task { @MainActor in
-                guard let self = self else { return }
                 self.refreshCurrentScreen()
                 if !self.fullscreenLatch { self.updateVisibility() }
             }
@@ -384,8 +385,8 @@ class PanelWindowController: NSObject, NSWindowDelegate {
             object: nil,
             queue: .main
         ) { [weak self] _ in
+            guard let self else { return }
             Task { @MainActor in
-                guard let self = self else { return }
                 let newChoice = SettingsManager.shared.displayChoice
                 if newChoice != self.lastDisplayChoice {
                     self.lastDisplayChoice = newChoice
@@ -407,8 +408,9 @@ class PanelWindowController: NSObject, NSWindowDelegate {
         guard SettingsManager.shared.displayChoice == "auto" else { return }
 
         autoScreenPoller = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            guard let self else { return }
             Task { @MainActor in
-                self?.refreshCurrentScreen()
+                self.refreshCurrentScreen()
             }
         }
     }
@@ -504,8 +506,8 @@ class PanelWindowController: NSObject, NSWindowDelegate {
     private func startFullscreenExitPoller() {
         fullscreenPoller?.invalidate()
         fullscreenPoller = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
             Task { @MainActor in
-                guard let self = self else { timer.invalidate(); return }
                 if !self.isActiveSpaceFullscreen() {
                     self.fullscreenLatch = false
                     self.updateVisibility()
@@ -525,7 +527,7 @@ class PanelWindowController: NSObject, NSWindowDelegate {
             return
         }
 
-        if settings.hideWhenNoSession && appState.activeSessionCount == 0 {
+        if settings.hideWhenNoSession && appState.sessions.isEmpty {
             panel.orderOut(nil)
             return
         }

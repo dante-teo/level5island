@@ -40,13 +40,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Hooks auto-recovery: periodic + app activation trigger
         hookRecoveryTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
-            self?.checkAndRepairHooks()
+            guard let self else { return }
+            Task { @MainActor in self.checkAndRepairHooks() }
         }
         NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
-            self?.checkAndRepairHooks()
+            guard let self else { return }
+            Task { @MainActor in self.checkAndRepairHooks() }
         }
 
         #if DEBUG
@@ -94,7 +96,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationWillTerminate(_ notification: Notification) {
         hookRecoveryTimer?.invalidate()
         teardownGlobalShortcut()
-        appState.saveSessions()
         hookServer?.stop()
         appState.stopSessionDiscovery()
     }

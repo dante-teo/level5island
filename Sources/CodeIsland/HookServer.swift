@@ -31,8 +31,9 @@ class HookServer {
         }
 
         listener?.newConnectionHandler = { [weak self] connection in
+            guard let self else { return }
             Task { @MainActor in
-                self?.handleConnection(connection)
+                self.handleConnection(connection)
             }
         }
 
@@ -66,8 +67,8 @@ class HookServer {
     /// Recursively receive all data until EOF, then process
     private func receiveAll(connection: NWConnection, accumulated: Data) {
         connection.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self] content, _, isComplete, error in
+            guard let self else { return }
             Task { @MainActor in
-                guard let self = self else { return }
 
                 // On error with no data, just drop the connection
                 if error != nil && accumulated.isEmpty && content == nil {
@@ -98,7 +99,7 @@ class HookServer {
     private static let autoApproveTools: Set<String> = [
         "TaskCreate", "TaskUpdate", "TaskGet", "TaskList", "TaskOutput", "TaskStop",
         "TodoRead", "TodoWrite",
-        "EnterPlanMode", "ExitPlanMode",
+        "EnterPlanMode",
     ]
 
     private func processRequest(data: Data, connection: NWConnection) {
@@ -181,8 +182,8 @@ class HookServer {
         connectionContexts[ObjectIdentifier(connection)] = context
 
         connection.stateUpdateHandler = { [weak self] state in
+            guard let self else { return }
             Task { @MainActor in
-                guard let self = self else { return }
                 switch state {
                 case .cancelled, .failed:
                     if !context.responded {

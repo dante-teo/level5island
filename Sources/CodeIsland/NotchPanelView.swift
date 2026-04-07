@@ -21,6 +21,7 @@ private extension AnyTransition {
     )
 }
 
+@MainActor
 struct NotchPanelView: View {
     var appState: AppState
     let hasNotch: Bool
@@ -50,10 +51,8 @@ struct NotchPanelView: View {
     private var showIdleIndicator: Bool {
         !isActive && !hideWhenNoSession
     }
-    /// Whether the bar content should be visible (respects hideWhenNoSession)
-    private var showBar: Bool {
-        isActive && !(hideWhenNoSession && appState.activeSessionCount == 0)
-    }
+    /// Whether the bar content should be visible (hideWhenNoSession is enforced at the window level)
+    private var showBar: Bool { isActive }
     private var shouldShowExpanded: Bool {
         showBar && appState.surface.isExpanded
     }
