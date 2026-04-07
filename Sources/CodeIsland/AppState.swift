@@ -501,7 +501,9 @@ final class AppState {
         // Show UI only if this is the first (or only) queued item
         if permissionQueue.count == 1 {
             activeSessionId = sessionId
-            surface = .approvalCard(sessionId: sessionId)
+            withAnimation(NotchAnimation.pop) {
+                surface = .approvalCard(sessionId: sessionId)
+            }
             SoundManager.shared.handleEvent("PermissionRequest")
         }
         refreshDerivedState()
@@ -732,15 +734,23 @@ final class AppState {
         if let next = permissionQueue.first {
             let sid = next.event.sessionId ?? "default"
             activeSessionId = sid
-            surface = .approvalCard(sessionId: sid)
+            withAnimation(NotchAnimation.open) {
+                surface = .approvalCard(sessionId: sid)
+            }
         } else if let next = questionQueue.first {
             let sid = next.event.sessionId ?? "default"
             activeSessionId = sid
-            surface = .questionCard(sessionId: sid)
+            withAnimation(NotchAnimation.open) {
+                surface = .questionCard(sessionId: sid)
+            }
         } else if case .approvalCard = surface {
-            surface = .collapsed
+            withAnimation(NotchAnimation.close) {
+                surface = .collapsed
+            }
         } else if case .questionCard = surface {
-            surface = .collapsed
+            withAnimation(NotchAnimation.close) {
+                surface = .collapsed
+            }
         }
     }
 

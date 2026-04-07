@@ -1,6 +1,26 @@
 import SwiftUI
 import CodeIslandCore
 
+// MARK: - Phosphor Terminal Palette
+
+private enum Phosphor {
+    static let border        = Color.white.opacity(0.08)
+    static let borderHover   = Color.white.opacity(0.18)
+    static let warningAmber  = Color(red: 1.0, green: 0.7, blue: 0.28)
+    static let questionCyan  = Color(red: 0.4, green: 0.7, blue: 1.0)
+}
+
+private extension AnyTransition {
+    static let cardReveal = AnyTransition.asymmetric(
+        insertion: .opacity.combined(with: .offset(y: -8)),
+        removal: .opacity
+    )
+    static let listReveal = AnyTransition.asymmetric(
+        insertion: .opacity.combined(with: .offset(y: -12)),
+        removal: .opacity
+    )
+}
+
 struct NotchPanelView: View {
     var appState: AppState
     let hasNotch: Bool
@@ -21,6 +41,8 @@ struct NotchPanelView: View {
     @State private var curtainOffset: CGFloat = 0
     @State private var curtainOpacity: Double = 1
     @State private var displayedToolStatus: Bool = SettingsDefaults.showToolStatus
+    /// Content stagger: reveals content slightly after panel shape expands
+    @State private var contentVisible = false
 
     private var isActive: Bool { !appState.sessions.isEmpty }
     /// First launch / no-session state should still render a visible marker so the app
@@ -88,12 +110,14 @@ struct NotchPanelView: View {
                         .frame(height: notchHeight)
                 }
 
-                // Below-notch expanded content
-                if shouldShowExpanded {
-                    Line()
-                        .stroke(.white.opacity(0.15), style: StrokeStyle(lineWidth: 0.5, dash: [4, 3]))
-                        .frame(height: 0.5)
-                        .padding(.horizontal, 12)
+                // Below-notch expanded content (staggered after panel shape)
+                if shouldShowExpanded && contentVisible {
+                    LinearGradient(
+                        colors: [.clear, Phosphor.border, .clear],
+                        startPoint: .leading, endPoint: .trailing
+                    )
+                    .frame(height: 0.5)
+                    .padding(.horizontal, 16)
 
                     switch appState.surface {
                     case .approvalCard:
@@ -107,7 +131,7 @@ struct NotchPanelView: View {
                                 onAlwaysAllow: { appState.approvePermission(always: true) },
                                 onDeny: { appState.denyPermission() }
                             )
-                            .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+                            .transition(.cardReveal)
                         }
                     case .questionCard(let sid):
                         let session = appState.sessions[sid]
@@ -123,7 +147,7 @@ struct NotchPanelView: View {
                                 onAnswer: { appState.answerQuestion($0) },
                                 onSkip: { appState.skipQuestion() }
                             )
-                            .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+                            .transition(.cardReveal)
                         } else if let preview = appState.previewQuestionPayload {
                             QuestionBar(
                                 question: preview.question,
@@ -136,14 +160,14 @@ struct NotchPanelView: View {
                                 onAnswer: { _ in },
                                 onSkip: { }
                             )
-                            .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+                            .transition(.cardReveal)
                         }
                     case .completionCard:
                         SessionListView(appState: appState, onlySessionId: appState.justCompletedSessionId)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            .transition(.listReveal)
                     case .sessionList:
                         SessionListView(appState: appState, onlySessionId: nil)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
+                            .transition(.listReveal)
                     case .collapsed:
                         EmptyView()
                     }
@@ -247,7 +271,15 @@ struct NotchPanelView: View {
                 .allowsHitTesting(false)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .animation(NotchAnimation.open, value: appState.surface)
+        .onChange(of: shouldShowExpanded) { _, expanded in
+            if expanded {
+                withAnimation(NotchAnimation.contentReveal) {
+                    contentVisible = true
+                }
+            } else {
+                contentVisible = false
+            }
+        }
     }
 }
 
@@ -545,7 +577,12 @@ private struct NotchIconButton: View {
                 .frame(width: 22, height: 22)
                 .background(
                     Circle()
-                        .fill(tint.opacity(hovering ? 0.2 : 0.08))
+                        .fill(
+                            RadialGradient(
+                                colors: [tint.opacity(hovering ? 0.25 : 0.08), tint.opacity(hovering ? 0.12 : 0.04)],
+                                center: .center, startRadius: 0, endRadius: 11
+                            )
+                        )
                 )
                 .scaleEffect(hovering ? 1.1 : 1.0)
                 .contentShape(Circle())
@@ -682,6 +719,11 @@ private struct ApprovalBar: View {
             .padding(.horizontal, 14)
         }
         .padding(.vertical, 10)
+        .overlay(alignment: .top) {
+            Phosphor.warningAmber.opacity(0.35)
+                .frame(height: 1)
+                .blur(radius: 2)
+        }
     }
 
     @ViewBuilder
@@ -958,6 +1000,11 @@ private struct QuestionBar: View {
             .padding(.horizontal, 14)
         }
         .padding(.vertical, 10)
+        .overlay(alignment: .top) {
+            Phosphor.questionCyan.opacity(0.35)
+                .frame(height: 1)
+                .blur(radius: 2)
+        }
         .onAppear { isFocused = true }
     }
 }
@@ -1032,12 +1079,21 @@ private struct PixelButton: View {
                 .padding(.vertical, 7)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(hovering ? bg.opacity(1.5) : bg)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    hovering ? bg : bg.opacity(0.9),
+                                    hovering ? bg.opacity(0.8) : bg.opacity(0.7)
+                                ],
+                                startPoint: .top, endPoint: .bottom
+                            )
+                        )
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
                         .strokeBorder(hovering ? border : border.opacity(0.4), lineWidth: 1)
                 )
+                .scaleEffect(hovering ? 1.02 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { h in withAnimation(NotchAnimation.micro) { hovering = h } }
@@ -1297,14 +1353,14 @@ private struct SessionsExpandLink: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Rectangle().fill(.white.opacity(0.15)).frame(height: 1)
+                Rectangle().fill(Phosphor.borderHover).frame(height: 1)
                 Text("\(count) \(L10n.shared["n_sessions"])")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .foregroundStyle(.white.opacity(hovering ? 0.7 : 0.45))
                 Image(systemName: "chevron.down")
                     .font(.system(size: 8, weight: .bold))
                     .foregroundStyle(.white.opacity(hovering ? 0.5 : 0.3))
-                Rectangle().fill(.white.opacity(0.15)).frame(height: 1)
+                Rectangle().fill(Phosphor.borderHover).frame(height: 1)
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
@@ -1350,6 +1406,10 @@ private struct SessionCard: View {
             // Column 1: Character + subagent icons
             VStack(spacing: 3) {
                 MascotView(source: session.source, status: session.status, size: 32)
+                    .shadow(
+                        color: session.status != .idle ? statusNameColor.opacity(0.3) : .clear,
+                        radius: session.status != .idle ? 6 : 0
+                    )
                 if showAgentDetails && !session.subagents.isEmpty {
                     let sorted = session.subagents.values.sorted { $0.startTime < $1.startTime }
                     // Grid: 4 per row, 8px icons
@@ -1463,7 +1523,22 @@ private struct SessionCard: View {
         .padding(.vertical, 12)
         .background(
             RoundedRectangle(cornerRadius: 10)
-                .fill(hovering ? Color.white.opacity(0.10) : Color.white.opacity(0.05))
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(hovering ? 0.12 : 0.06),
+                            Color.white.opacity(hovering ? 0.08 : 0.03)
+                        ],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .strokeBorder(
+                    hovering ? statusNameColor.opacity(0.25) : Phosphor.border,
+                    lineWidth: 0.5
+                )
         )
         .padding(.horizontal, 6)
         .contentShape(Rectangle())
@@ -1727,6 +1802,7 @@ private struct TerminalJumpButton: View {
                     .font(.system(size: 7, weight: .bold))
                     .foregroundStyle(green.opacity(hovering ? 1.0 : 0.5))
                     .offset(x: hovering ? 2 : 0)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.7), value: hovering)
             }
             .padding(.horizontal, 6)
             .padding(.vertical, 3)

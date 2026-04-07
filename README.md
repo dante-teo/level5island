@@ -6,7 +6,7 @@
   <b>Real-time AI coding agent status panel for macOS Dynamic Island (Notch)</b><br>
   <a href="#installation">Install</a> •
   <a href="#features">Features</a> •
-  <a href="#supported-tools">Supported Tools</a> •
+  <a href="#supported-tool">Supported Tool</a> •
   <a href="#build-from-source">Build</a><br>
   English | <a href="README.zh-CN.md">简体中文</a>
 </p>
@@ -19,38 +19,28 @@
 
 ## What is CodeIsland?
 
-CodeIsland lives in your MacBook's notch area and shows you what your AI coding agents are doing — in real time. No more switching windows to check if Claude is waiting for approval or if Codex finished its task.
+CodeIsland lives in your MacBook's notch area and shows you what Claude Code is doing — in real time. No more switching windows to check if Claude is waiting for approval or if a task just finished.
 
-It connects to **9 AI coding tools** via Unix socket IPC, displaying session status, tool calls, permission requests, and more — all in a compact, pixel-art styled panel.
+It connects to **Claude Code** via Unix socket IPC, displaying session status, tool calls, permission requests, and more — all in a compact, pixel-art styled panel.
 
 ## Features
 
 - **Notch-native UI** — Expands from the MacBook notch, collapses when idle
-- **9 AI tools supported** — Claude Code, Codex, Gemini CLI, Cursor, Copilot, Qoder, Factory, CodeBuddy, OpenCode
+- **Claude Code integration** — Full hook support with 13 event types
 - **Live status tracking** — See active sessions, tool calls, and AI responses in real time
 - **Permission management** — Approve/deny tool permissions directly from the panel
 - **Question answering** — Respond to agent questions without leaving your current app
-- **Pixel-art mascots** — Each AI tool has its own animated character
+- **Pixel-art mascot** — Animated Clawd character reflects session state
 - **One-click jump** — Click a session to jump to its terminal tab or IDE window
 - **Smart suppress** — Tab-level terminal detection: only suppresses notifications when you're looking at the specific session tab, not just the terminal app
 - **Sound effects** — Optional 8-bit sound notifications for session events
-- **Auto hook install** — Automatically configures hooks for all detected CLI tools, with auto-repair and version tracking
+- **Auto hook install** — Automatically configures Claude Code hooks, with auto-repair and version tracking
 - **Bilingual UI** — English and Chinese, auto-detects system language
 - **Multi-display** — Works with external monitors, auto-detects notch displays
 
-## Supported Tools
+## Supported Tool
 
-| | Tool | Events | Jump | Status |
-|:---:|------|--------|------|--------|
-| <img src="docs/images/mascots/claude.gif" width="28"> | <img src="Sources/CodeIsland/Resources/cli-icons/claude.png" width="16"> Claude Code | 13 | Terminal tab | Full |
-| <img src="docs/images/mascots/codex.gif" width="28"> | <img src="Sources/CodeIsland/Resources/cli-icons/codex.png" width="16"> Codex | 3 | Terminal | Basic |
-| <img src="docs/images/mascots/gemini.gif" width="28"> | <img src="Sources/CodeIsland/Resources/cli-icons/gemini.png" width="16"> Gemini CLI | 6 | Terminal | Full |
-| <img src="docs/images/mascots/cursor.gif" width="28"> | <img src="Sources/CodeIsland/Resources/cli-icons/cursor.png" width="16"> Cursor | 10 | IDE | Full |
-| <img src="docs/images/mascots/copilot.gif" width="28"> | <img src="Sources/CodeIsland/Resources/cli-icons/copilot.png" width="16"> Copilot | 6 | Terminal | Full |
-| <img src="docs/images/mascots/qoder.gif" width="28"> | <img src="Sources/CodeIsland/Resources/cli-icons/qoder.png" width="16"> Qoder | 10 | IDE | Full |
-| <img src="docs/images/mascots/factory.gif" width="28"> | <img src="Sources/CodeIsland/Resources/cli-icons/factory.png" width="16"> Factory | 10 | IDE | Full |
-| <img src="docs/images/mascots/codebuddy.gif" width="28"> | <img src="Sources/CodeIsland/Resources/cli-icons/codebuddy.png" width="16"> CodeBuddy | 10 | APP/Terminal | Full |
-| <img src="docs/images/mascots/opencode.gif" width="28"> | <img src="Sources/CodeIsland/Resources/cli-icons/opencode.png" width="16"> OpenCode | All | APP/Terminal | Full |
+Built for **Claude Code** — 13 hook events, terminal tab jump, full session tracking.
 
 ## Installation
 
@@ -66,7 +56,7 @@ brew install --cask codeisland
 1. Go to [Releases](https://github.com/wxtsky/CodeIsland/releases)
 2. Download `CodeIsland.dmg`
 3. Open the DMG and drag `CodeIsland.app` to your Applications folder
-4. Launch CodeIsland — it will automatically install hooks for all detected AI tools
+4. Launch CodeIsland — it will automatically install the Claude Code hook
 
 > **Note:** On first launch, macOS may show a security warning. Go to **System Settings → Privacy & Security** and click **Open Anyway**.
 
@@ -89,17 +79,14 @@ open .build/release/CodeIsland.app
 ## How It Works
 
 ```
-AI Tool (Claude/Codex/Gemini/Cursor/Copilot/...)
-  → Hook event triggered
-    → codeisland-bridge (native Swift binary, ~86KB)
-      → Unix socket → /tmp/codeisland-<uid>.sock
-        → CodeIsland app receives event
-          → Updates UI in real time
+Claude Code hook event
+  → codeisland-bridge (native Swift binary, ~86KB)
+    → Unix socket → /tmp/codeisland-<uid>.sock
+      → CodeIsland app receives event
+        → Updates UI in real time
 ```
 
-CodeIsland installs lightweight hooks into each AI tool's config. When the tool triggers an event (session start, tool call, permission request, etc.), the hook sends a JSON message through a Unix socket. CodeIsland listens on this socket and updates the notch panel instantly.
-
-For **OpenCode**, a JS plugin connects directly to the socket — no bridge binary needed.
+CodeIsland installs a lightweight hook into Claude Code's config. When Claude triggers an event (session start, tool call, permission request, etc.), the hook sends a JSON message through a Unix socket. CodeIsland listens on this socket and updates the notch panel instantly.
 
 ## Settings
 
