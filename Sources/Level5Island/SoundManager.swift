@@ -59,15 +59,26 @@ class SoundManager {
         sound.play()
     }
 
+    /// Resolve the SPM resource bundle, checking both Contents/Resources/ (distribution)
+    /// and the app root (SPM debug builds where Bundle.module places it).
+    private static let resourceBundle: Bundle? = {
+        let bundleName = "Level5Island_Level5Island.bundle"
+        // Distribution: .app/Contents/Resources/<bundle>
+        if let resourceURL = Bundle.main.resourceURL,
+           let bundle = Bundle(url: resourceURL.appendingPathComponent(bundleName)) {
+            return bundle
+        }
+        // SPM debug builds: Bundle.module (looks at app root)
+        return Bundle(url: Bundle.main.bundleURL.appendingPathComponent(bundleName))
+    }()
+
     /// Load a WAV from the SPM resource bundle
     private func loadSound(_ name: String) -> NSSound? {
-        // SPM generates Bundle.module for resource bundles
-        // Resources are inside Level5Island_Level5Island.bundle/Resources/
-        if let url = Bundle.module.url(forResource: name, withExtension: "wav", subdirectory: "Resources") {
+        guard let bundle = Self.resourceBundle else { return nil }
+        if let url = bundle.url(forResource: name, withExtension: "wav", subdirectory: "Resources") {
             return NSSound(contentsOf: url, byReference: false)
         }
-        // Fallback: try without subdirectory
-        if let url = Bundle.module.url(forResource: name, withExtension: "wav") {
+        if let url = bundle.url(forResource: name, withExtension: "wav") {
             return NSSound(contentsOf: url, byReference: false)
         }
         return nil

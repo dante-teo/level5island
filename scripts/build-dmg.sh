@@ -60,10 +60,10 @@ xcrun actool \
     "$REPO_ROOT/Assets.xcassets" \
     "$REPO_ROOT/AppIcon.icon"
 
-# Copy SPM resource bundles at .app root where Bundle.module expects them
-for bundle in "$BUILD_DIR"/*/release/*.bundle; do
+# Copy SPM resource bundles into Contents/Resources (codesign requires nothing unsealed at app root)
+for bundle in "$BUILD_DIR"/*/release/Level5Island_Level5Island.bundle; do
     if [ -e "$bundle" ]; then
-        cp -R "$bundle" "$APP_DIR/"
+        cp -R "$bundle" "$CONTENTS_DIR/Resources/"
         break
     fi
 done
