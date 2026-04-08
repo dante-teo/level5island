@@ -146,13 +146,23 @@ public struct SessionSnapshot {
             || lower.contains("antigravity")
     }
 
+    public static let ghosttyBundleId = "com.mitchellh.ghostty"
+
+    /// True if this session runs in actual Ghostty (not a libghostty-based app)
+    public var isActualGhostty: Bool {
+        if let bid = termBundleId {
+            return bid.lowercased() == Self.ghosttyBundleId
+        }
+        return termApp?.lowercased() == "ghostty"
+    }
+
     /// Short terminal/app name for display tag
     public var terminalName: String? {
         if let bid = termBundleId {
             let lower = bid.lowercased()
             if lower.contains("cmux") { return "cmux" }
             if lower.contains("warp") { return "Warp" }
-            if lower == "com.mitchellh.ghostty" { return "Ghostty" }
+            if lower == Self.ghosttyBundleId { return "Ghostty" }
             if lower.contains("iterm2") { return "iTerm2" }
             if lower.contains("kitty") { return "Kitty" }
             if lower.contains("alacritty") { return "Alacritty" }
@@ -183,7 +193,7 @@ public struct SessionSnapshot {
         guard let app = termApp else { return nil }
         let lower = app.lowercased()
         if lower.contains("cmux") { return "cmux" }
-        if lower == "ghostty" { return "Ghostty" }
+        if lower == "ghostty" && isActualGhostty { return "Ghostty" }
         if lower.contains("iterm") { return "iTerm2" }
         if lower.contains("warp") { return "Warp" }
         if lower.contains("alacritty") { return "Alacritty" }

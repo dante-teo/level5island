@@ -8,7 +8,7 @@ struct TerminalActivator {
 
     private static let knownTerminals: [(name: String, bundleId: String)] = [
         ("cmux", "com.cmuxterm.app"),
-        ("Ghostty", "com.mitchellh.ghostty"),
+        ("Ghostty", SessionSnapshot.ghosttyBundleId),
         ("iTerm2", "com.googlecode.iterm2"),
         ("WezTerm", "com.github.wez.wezterm"),
         ("kitty", "net.kovidgoyal.kitty"),
@@ -64,7 +64,7 @@ struct TerminalActivator {
             return
         }
 
-        if lower == "ghostty" {
+        if lower == "ghostty" && session.isActualGhostty {
             activateGhostty(cwd: session.cwd, sessionId: sessionId, source: session.source)
             return
         }
@@ -93,7 +93,7 @@ struct TerminalActivator {
     private static func activateGhostty(cwd: String?, sessionId: String? = nil, source: String = "claude") {
         guard let cwd = cwd, !cwd.isEmpty else { bringToFront("Ghostty"); return }
         // Ensure app is unhidden and brought to front (Space switching)
-        if let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == "com.mitchellh.ghostty" }) {
+        if let app = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == SessionSnapshot.ghosttyBundleId }) {
             if app.isHidden { app.unhide() }
             app.activate()
         }

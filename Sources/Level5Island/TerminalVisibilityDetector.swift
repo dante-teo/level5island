@@ -77,7 +77,7 @@ struct TerminalVisibilityDetector {
         if lower.contains("iterm") {
             return isITermSessionActive(session)
         }
-        if lower == "ghostty" {
+        if lower == "ghostty" && session.isActualGhostty {
             return isGhosttyTabActive(session)
         }
         if lower.contains("terminal") {

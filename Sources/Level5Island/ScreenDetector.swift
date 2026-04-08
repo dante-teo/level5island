@@ -10,7 +10,7 @@ struct ScreenDetector {
     /// Simulated notch width for non-notch screens — scales with screen width
     private static func fakeNotchWidth(for screen: NSScreen) -> CGFloat {
         let screenW = screen.frame.width
-        return min(max(screenW * 0.14, 160), 240)
+        return min(max(screenW * 0.10, 120), 180)
     }
 
     static func autoPreferredIndex(candidates: [Candidate], activeWindowBounds: CGRect?) -> Int? {

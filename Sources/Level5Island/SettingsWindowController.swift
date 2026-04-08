@@ -49,8 +49,15 @@ class SettingsWindowController {
         // Revert to accessory policy when settings window is closed
         closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
-        ) { _ in
+        ) { [weak self] _ in
             Task { @MainActor in
+                // Close the stray SwiftUI Settings scene window (empty phantom window).
+                // Skip our own window, NSPanel (notch overlay), and status item windows.
+                let ours = self?.window
+                for w in NSApp.windows where w !== ours && w.isVisible
+                    && !(w is NSPanel) && w.level == .normal {
+                    w.close()
+                }
                 // Hide Dock tile first to avoid flash of default icon during transition
                 NSApp.setActivationPolicy(.accessory)
                 NSApp.hide(nil)

@@ -64,7 +64,9 @@ struct NotchPanelView: View {
         let extra: CGFloat = appState.status == .idle ? 0 : 20
         // Reserve space for tool status — proportional to screen width
         let toolExtra: CGFloat = displayedToolStatus ? (hasNotch ? screenWidth * 0.03 : screenWidth * 0.04) : 0
-        return notchW + wing * 2 + extra + toolExtra
+        // Notch screens need wider wings so text beside the notch isn't clipped
+        let notchBonus: CGFloat = hasNotch ? 60 : 0
+        return notchW + wing * 2 + extra + toolExtra + notchBonus
     }
 
     var body: some View {
