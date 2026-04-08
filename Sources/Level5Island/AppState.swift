@@ -26,12 +26,15 @@ final class AppState {
         return nil
     }
 
-    /// Events that prove a pending permission/question was resolved externally
-    /// (e.g. user approved in terminal). PreToolUse and subagent events are excluded
-    /// because they can race with PermissionRequest arrivals.
-    private static let clearsWaiting: Set<String> = [
-        "PostToolUse", "PostToolUseFailure", "PermissionDenied",
-        "UserPromptSubmit", "Stop",
+    /// Events proving a pending permission/question was resolved externally.
+    /// Peer disconnection (bridge death, Ctrl-C) is handled by monitorPeerDisconnect.
+    private static let clearsWaitingAll: Set<String> = [
+        "PermissionDenied", "UserPromptSubmit", "Stop",
+    ]
+
+    /// Tool-completion events — only drain the matching tool, not unrelated parallel tools.
+    private static let clearsWaitingMatchingTool: Set<String> = [
+        "PostToolUse", "PostToolUseFailure",
     ]
 
     private var maxHistory: Int { SettingsManager.shared.maxToolHistory }
@@ -436,11 +439,23 @@ final class AppState {
         // Permission/question was answered externally (e.g. user replied in terminal).
         // Subagent events (agentId != nil) must not drain the parent's pending items.
         if wasWaiting, event.agentId == nil {
-            if Self.clearsWaiting.contains(event.eventName) {
+            if Self.clearsWaitingAll.contains(event.eventName) {
                 drainPermissions(forSession: sessionId)
                 drainQuestions(forSession: sessionId)
                 if sessions[sessionId]?.status.needsAttention == true {
                     sessions[sessionId]?.status = (event.eventName == "Stop") ? .idle : .processing
+                    sessions[sessionId]?.currentTool = nil
+                    sessions[sessionId]?.toolDescription = nil
+                }
+                showNextPending()
+            } else if Self.clearsWaitingMatchingTool.contains(event.eventName),
+                      let toolName = event.toolName {
+                drainPermissions(forSession: sessionId, toolName: toolName)
+                drainQuestions(forSession: sessionId, toolName: toolName)
+                if sessions[sessionId]?.status.needsAttention == true,
+                   !permissionQueue.contains(where: { $0.event.sessionId == sessionId }),
+                   !questionQueue.contains(where: { $0.event.sessionId == sessionId }) {
+                    sessions[sessionId]?.status = .processing
                     sessions[sessionId]?.currentTool = nil
                     sessions[sessionId]?.toolDescription = nil
                 }
@@ -718,11 +733,13 @@ final class AppState {
         refreshDerivedState()
     }
 
-    /// Drain all queued permissions for a specific session, resuming their continuations with deny
-    private func drainPermissions(forSession sessionId: String) {
+    /// Drain queued permissions for a session, resuming continuations with deny.
+    /// When `toolName` is provided, only drains items matching that tool.
+    private func drainPermissions(forSession sessionId: String, toolName: String? = nil) {
         let denyResponse = Data(#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny"}}}"#.utf8)
         permissionQueue.removeAll { item in
             guard item.event.sessionId == sessionId else { return false }
+            if let toolName, item.event.toolName != toolName { return false }
             item.continuation.resume(returning: denyResponse)
             return true
         }
@@ -759,10 +776,12 @@ final class AppState {
         refreshDerivedState()
     }
 
-    /// Drain all queued questions for a specific session, resuming their continuations with empty
-    private func drainQuestions(forSession sessionId: String) {
+    /// Drain queued questions for a session, resuming continuations with empty.
+    /// When `toolName` is provided, only drains items matching that tool.
+    private func drainQuestions(forSession sessionId: String, toolName: String? = nil) {
         questionQueue.removeAll { item in
             guard item.event.sessionId == sessionId else { return false }
+            if let toolName, item.event.toolName != toolName { return false }
             item.continuation.resume(returning: Data("{}".utf8))
             return true
         }
