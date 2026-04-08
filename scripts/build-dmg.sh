@@ -71,23 +71,26 @@ done
 echo "==> App bundle assembled at $APP_DIR"
 
 # ---------------------------------------------------------------------------
-# Code signing requires an Apple Developer account ($99/year).
-# Without Developer ID signing + notarization, macOS Gatekeeper will block
-# apps downloaded from the internet ("damaged" / "unidentified developer").
-#
-# Workaround for users: run  xattr -cr /Applications/Level5Island.app
-# Or install via Homebrew:  brew install dante-teo/tap/level5island
-#
-# To enable signing, uncomment below and set your credentials:
+# Code signing — uses SIGNING_IDENTITY and TEAM_ID from environment.
+# If SIGNING_IDENTITY is not set, falls back to ad-hoc signing (local dev).
 # ---------------------------------------------------------------------------
-# TEAM_ID="YOUR_TEAM_ID"
-# SIGNING_IDENTITY="Developer ID Application: Your Name (${TEAM_ID})"
-#
-# codesign --deep --force --options runtime \
-#     --entitlements "$REPO_ROOT/Level5Island.entitlements" \
-#     --sign "$SIGNING_IDENTITY" \
-#     "$APP_DIR"
-# ---------------------------------------------------------------------------
+if [[ -n "${SIGNING_IDENTITY:-}" ]]; then
+    echo "==> Signing with Developer ID: $SIGNING_IDENTITY"
+
+    # Sign helper binary first
+    codesign --force --options runtime \
+        --sign "$SIGNING_IDENTITY" \
+        "$CONTENTS_DIR/Helpers/level5island-bridge"
+
+    # Sign the app bundle with entitlements
+    codesign --deep --force --options runtime \
+        --entitlements "$REPO_ROOT/Level5Island.entitlements" \
+        --sign "$SIGNING_IDENTITY" \
+        "$APP_DIR"
+else
+    echo "==> SIGNING_IDENTITY not set, using ad-hoc signing (not notarized)"
+    codesign --deep --force --sign - "$APP_DIR"
+fi
 
 echo "==> Creating DMG"
 
@@ -106,19 +109,19 @@ create-dmg \
     "$STAGING_DIR/"
 
 # ---------------------------------------------------------------------------
-# Notarization (uncomment after Developer ID signing)
+# Notarization — requires APPLE_ID, APPLE_APP_PASSWORD, and TEAM_ID env vars.
+# Only runs when the app was Developer ID signed (not ad-hoc).
 # ---------------------------------------------------------------------------
-# BUNDLE_ID="com.level5island.app"
-# APPLE_ID="your@apple.id"
-# APP_PASSWORD="xxxx-xxxx-xxxx-xxxx"  # app-specific password
-#
-# xcrun notarytool submit "$OUTPUT_DMG" \
-#     --apple-id "$APPLE_ID" \
-#     --password "$APP_PASSWORD" \
-#     --team-id "$TEAM_ID" \
-#     --wait
-#
-# xcrun stapler staple "$OUTPUT_DMG"
-# ---------------------------------------------------------------------------
+if [[ -n "${SIGNING_IDENTITY:-}" && -n "${APPLE_ID:-}" && -n "${APPLE_APP_PASSWORD:-}" && -n "${TEAM_ID:-}" ]]; then
+    echo "==> Submitting DMG for notarization"
+    xcrun notarytool submit "$OUTPUT_DMG" \
+        --apple-id "$APPLE_ID" \
+        --password "$APPLE_APP_PASSWORD" \
+        --team-id "$TEAM_ID" \
+        --wait
+
+    echo "==> Stapling notarization ticket"
+    xcrun stapler staple "$OUTPUT_DMG"
+fi
 
 echo "==> Done: $OUTPUT_DMG"

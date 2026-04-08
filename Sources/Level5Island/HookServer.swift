@@ -100,6 +100,7 @@ class HookServer {
         "TaskCreate", "TaskUpdate", "TaskGet", "TaskList", "TaskOutput", "TaskStop",
         "TodoRead", "TodoWrite",
         "EnterPlanMode",
+        "ExitPlanMode",
     ]
 
     private func processRequest(data: Data, connection: NWConnection) {
