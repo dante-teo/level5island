@@ -96,8 +96,6 @@ class HookServer {
     }
 
     /// Internal tools that are safe to auto-approve without user confirmation.
-    /// ExitPlanMode is intentionally excluded — the user must approve plan
-    /// completion in their terminal, not have it silently auto-approved.
     private static let autoApproveTools: Set<String> = [
         "TaskCreate", "TaskUpdate", "TaskGet", "TaskList", "TaskOutput", "TaskStop",
         "TodoRead", "TodoWrite",
@@ -123,6 +121,14 @@ class HookServer {
             if let toolName = event.toolName, Self.autoApproveTools.contains(toolName) {
                 let response = #"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"allow"}}}"#
                 sendResponse(connection: connection, data: Data(response.utf8))
+                return
+            }
+
+            // ExitPlanMode: show notification only, user approves in terminal
+            if event.toolName == "ExitPlanMode" {
+                log.info("ExitPlanMode intercepted — returning empty response")
+                appState.notifyPlanReady(sessionId)
+                sendResponse(connection: connection, data: Data("{}".utf8))
                 return
             }
 

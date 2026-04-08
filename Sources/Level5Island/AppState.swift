@@ -308,6 +308,12 @@ final class AppState {
         }
     }
 
+    /// Notify user that a plan is ready for review — always expands the panel
+    /// (no smart-suppress: user needs the visual cue to switch to terminal).
+    func notifyPlanReady(_ sessionId: String) {
+        doShowCompletion(sessionId)
+    }
+
     private func doShowCompletion(_ sessionId: String) {
         activeSessionId = sessionId
         surface = .completionCard(sessionId: sessionId)
