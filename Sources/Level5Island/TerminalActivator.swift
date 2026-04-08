@@ -84,6 +84,11 @@ struct TerminalActivator {
             return
         }
 
+        if lower.contains("cmux") {
+            activateCmux(cwd: session.cwd)
+            return
+        }
+
         // --- App-level only (Alacritty, Warp, Hyper, Tabby, Rio, etc.) ---
         bringToFront(termApp)
     }
@@ -247,6 +252,23 @@ struct TerminalActivator {
             // Switch to the window containing the pane, then select the pane
             _ = runProcess(bin, args: ["select-window", "-t", pane])
             _ = runProcess(bin, args: ["select-pane", "-t", pane])
+        }
+    }
+
+    // MARK: - cmux (CLI: find-window --content --select)
+
+    private static let cmuxBinaryPath = "/Applications/cmux.app/Contents/Resources/bin/cmux"
+
+    private static func activateCmux(cwd: String?) {
+        guard FileManager.default.isExecutableFile(atPath: cmuxBinaryPath),
+              let cwd = cwd, !cwd.isEmpty else {
+            bringToFront("cmux")
+            return
+        }
+        let dirName = (cwd as NSString).lastPathComponent
+        DispatchQueue.global(qos: .userInitiated).async {
+            _ = runProcess(cmuxBinaryPath, args: ["find-window", "--content", "--select", dirName])
+            DispatchQueue.main.async { bringToFront("cmux") }
         }
     }
 

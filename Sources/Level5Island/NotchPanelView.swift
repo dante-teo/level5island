@@ -1427,9 +1427,9 @@ private struct SessionCard: View {
                 }
 
                 // Session title: first user prompt (hide when detailed mode shows chat history)
-                if let prompt = session.lastUserPrompt,
+                if let summary = session.smartSummary ?? session.lastUserPrompt,
                    session.recentMessages.isEmpty {
-                    Text(prompt)
+                    Text(summary)
                         .font(Design.body(fontSize))
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
@@ -1475,7 +1475,15 @@ private struct SessionCard: View {
                             ClaudeLogo(size: fontSize + 1)
                                 .frame(width: fontSize + 2)
                             if let tool = session.currentTool {
-                                Text(session.toolDescription ?? tool)
+                                let desc: String = {
+                                    if tool == "Agent", session.activeSubagentCount > 0 {
+                                        let agentDesc = session.toolDescription ?? "Agent"
+                                        let count = String(format: L10n.shared["n_active"], session.activeSubagentCount)
+                                        return "\(agentDesc) (\(count))"
+                                    }
+                                    return session.toolDescription ?? tool
+                                }()
+                                Text(desc)
                                     .font(Design.body(fontSize))
                                     .foregroundStyle(.secondary)
                                     .lineLimit(1)

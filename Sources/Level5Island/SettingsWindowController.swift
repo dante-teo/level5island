@@ -49,11 +49,11 @@ class SettingsWindowController {
         // Revert to accessory policy when settings window is closed
         closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification, object: window, queue: .main
-        ) { [weak self] _ in
+        ) { _ in
+            let ours = window
             Task { @MainActor in
                 // Close the stray SwiftUI Settings scene window (empty phantom window).
                 // Skip our own window, NSPanel (notch overlay), and status item windows.
-                let ours = self?.window
                 for w in NSApp.windows where w !== ours && w.isVisible
                     && !(w is NSPanel) && w.level == .normal {
                     w.close()

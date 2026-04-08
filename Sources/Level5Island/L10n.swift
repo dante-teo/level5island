@@ -207,6 +207,10 @@ final class L10n: ObservableObject {
         "scroll_for_more": "Scroll for more",
         "scroll_hidden": "more below",
         "lines": "lines",
+        "running_agent": "Running Agent",
+        "n_active": "%d active",
+        "compacting_context": "Compacting...",
+        "exit_code": "Exit: %d",
     ]
 
     private static let zh: [String: String] = [
@@ -385,5 +389,9 @@ final class L10n: ObservableObject {
         "scroll_for_more": "向下滚动查看更多",
         "scroll_hidden": "个未显示",
         "lines": "行",
+        "running_agent": "运行中的 Agent",
+        "n_active": "%d 个活跃",
+        "compacting_context": "压缩上下文...",
+        "exit_code": "退出码: %d",
     ]
 }

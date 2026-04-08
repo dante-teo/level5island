@@ -75,6 +75,19 @@ public struct SessionSnapshot {
         }
     }
 
+    /// Smart summary for idle sessions: what the session accomplished
+    public var smartSummary: String? {
+        guard status == .idle else { return nil }
+        if let prompt = lastUserPrompt {
+            let truncated = String(prompt.prefix(60))
+            if let lastTool = toolHistory.last {
+                return "\(truncated) \u{2192} \(lastTool.tool)"
+            }
+            return truncated
+        }
+        return lastAssistantMessage.map { String($0.prefix(80)) }
+    }
+
     /// Display name: project folder, or short session ID
     public var displayName: String {
         if let cwd = cwd {
