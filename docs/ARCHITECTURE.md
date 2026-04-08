@@ -1,5 +1,7 @@
 # Architecture
 
+> **Scope:** Code structure, data flow, event system, and IPC protocol. For product features and supported tools, see [PRODUCT.md](PRODUCT.md). For visual design, see [DESIGN.md](DESIGN.md). For build commands and coding conventions, see [CLAUDE.md](../CLAUDE.md).
+
 ## System Overview
 
 ```

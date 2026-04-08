@@ -30,47 +30,26 @@ No external dependencies — uses only SPM with system frameworks (SwiftUI, AppK
 
 ## Architecture
 
-**Three targets** (see `Package.swift`):
+Three SPM targets: `Level5IslandCore` (pure logic library), `Level5Island` (SwiftUI app), and `level5island-bridge` (lightweight CLI hook binary). Unidirectional data flow via a pure reducer that returns declarative side effects.
 
-| Target | Type | Path | Purpose |
-|--------|------|------|---------|
-| `Level5IslandCore` | Library | `Sources/Level5IslandCore/` | Pure business logic: models, state reduction, event normalization |
-| `Level5Island` | Executable | `Sources/Level5Island/` | App layer: UI, window management, settings, hook installation |
-| `level5island-bridge` | Executable | `Sources/Level5IslandBridge/` | Native CLI hook binary (~86KB): terminal detection, socket forwarding |
+For full details — targets, data flow, event system, IPC protocol — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Data flow** (unidirectional, Redux-like):
-```
-AI Tool hook → level5island-bridge → Unix socket → HookServer
-  → HookEvent parsed → reduceEvent() → [SideEffect]
-    → AppState executes effects → SwiftUI observes changes
-```
+### Quick reference
 
-### Key patterns
-
-- **Pure reducer**: `reduceEvent(sessions:event:maxHistory:)` is a pure function that returns `[SideEffect]` — all state changes go through it
-- **State machine**: `AgentStatus.canTransition(to:)` validates all status transitions; the reducer gates every `session.status = X` assignment through it
-- **Side effects**: Returned from the reducer, executed by `AppState` (sounds, process monitoring, UI triggers)
-- **Intervention caching**: `InterventionCache` (30s TTL) auto-replays answers when Claude Code retries the same `AskUserQuestion`
-- **Interrupt detection**: `InterruptWatcher` monitors session JSONL files via `DispatchSource` as a fallback when the hook doesn't fire on Ctrl+C
-- **Claude Code only**: single CLI source with direct PascalCase event names
-
-### Key files
-
-- `SessionSnapshot.swift` — Core state model + `reduceEvent()` reducer
-- `Models.swift` — `HookEvent`, `AgentStatus` (with `canTransition`/`needsAttention`/`isActive`), `QuestionPayload`
+- `SessionSnapshot.swift` — Core state model + `reduceEvent()` pure reducer
+- `Models.swift` — `HookEvent`, `AgentStatus` (state machine with `canTransition`), `QuestionPayload`
 - `AppState.swift` — Observable main state, session lifecycle, effect execution
 - `ConfigInstaller.swift` — Auto-installs Claude Code hooks into `~/.claude/settings.json`
 - `DesignTokens.swift` — `Design` enum: colors, typography, spacing, `timeAgo()` for UI
 - `NotchPanelView.swift` — Main panel UI (compact + expanded modes)
-- `QuestionFormView.swift` — Question form: multi-select, secret input, markdown, "other" option
-- `ChatMessageTextFormatter.swift` — Shared markdown cache with LRU eviction
-- `MarkdownText.swift` — Inline markdown rendering view
-- `InterventionCache.swift` — TTL cache for repeated question auto-replay
-- `InterruptWatcher.swift` — JSONL file watcher for interrupt detection
-- `SessionHoverCard.swift` — Hover preview card for compact bar sessions
-- `PanelWindowController.swift` — Window positioning, visibility, notch detection
-- `TerminalActivator.swift` — Jump-to-terminal: window focus + tab switching
-- `Settings.swift` — `SettingsManager` singleton, `SettingsKey` enum, UserDefaults-backed
+
+## Documentation
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — Targets, data flow, event system, IPC protocol
+- [docs/PRODUCT.md](docs/PRODUCT.md) — Features, supported tools, settings, distribution
+- [docs/DESIGN.md](docs/DESIGN.md) — Visual identity, panel modes, mascot system, layout decisions
+
+> **Scope of this file:** Build commands, architecture summary, coding conventions, and pointers to detailed docs. For product features and supported tools, see PRODUCT.md. For visual design decisions, see DESIGN.md.
 
 ## Conventions
 

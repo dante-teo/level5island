@@ -3,7 +3,7 @@
   Level5Island
 </h1>
 <p align="center">
-  <b>Real-time AI coding agent status panel for macOS Dynamic Island (Notch)</b><br>
+  <b>Real-time AI coding agent status panel for the MacBook notch</b><br>
   <a href="#installation">Install</a> •
   <a href="#features">Features</a> •
   <a href="#supported-tool">Supported Tool</a> •
@@ -90,15 +90,7 @@ Level5Island installs a lightweight hook into Claude Code's config. When Claude 
 
 ## Settings
 
-Level5Island provides a 7-tab settings panel:
-
-- **General** — Language, launch at login, display selection
-- **Behavior** — Auto-hide, smart suppress, session cleanup
-- **Appearance** — Panel height, font size, AI reply lines
-- **Mascots** — Preview all pixel-art characters and their animations
-- **Sound** — 8-bit sound effects for session events
-- **Hooks** — View CLI installation status, reinstall or uninstall hooks
-- **About** — Version info and links
+Level5Island includes a 7-tab settings panel covering general preferences, behavior, appearance, mascots, sound, hooks, and about. See [docs/PRODUCT.md](docs/PRODUCT.md#user-settings-7-tabs) for details.
 
 ## Requirements
 

@@ -1,5 +1,7 @@
 # Product Overview
 
+> **Scope:** Features, supported tools, settings, and distribution. For architecture and code structure, see [ARCHITECTURE.md](ARCHITECTURE.md). For visual design decisions, see [DESIGN.md](DESIGN.md).
+
 ## What is Level5Island?
 
 Level5Island is a macOS menu bar application that lives in the MacBook notch area and provides real-time status monitoring for AI coding agents. It eliminates the need to switch windows to check if an agent is waiting for approval, has finished a task, or needs input.

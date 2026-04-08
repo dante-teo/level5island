@@ -1,5 +1,7 @@
 # Design
 
+> **Scope:** Visual identity, panel modes, mascot system, color/status mapping, and layout decisions. For architecture and data flow, see [ARCHITECTURE.md](ARCHITECTURE.md). For product features and supported tools, see [PRODUCT.md](PRODUCT.md).
+
 ## Visual Identity
 
 Level5Island uses a pixel-art aesthetic with 8-bit inspired visuals throughout:
@@ -56,11 +58,4 @@ Agent status maps to visual indicators:
 
 ## Settings UI
 
-7-tab `SettingsView` organized by concern:
-- General, Behavior, Appearance — standard app preferences
-- Mascots — visual preview gallery
-- Sound — per-event sound toggles
-- Hooks — CLI tool installation status with reinstall/uninstall actions
-- About — version info
-
-Settings are persisted via `UserDefaults` through `SettingsManager`, with all keys defined in `SettingsKey` enum and defaults in `SettingsDefaults`.
+7-tab `SettingsView` organized by concern — see [PRODUCT.md](PRODUCT.md#user-settings-7-tabs) for the full tab list. Settings are persisted via `UserDefaults` through `SettingsManager`, with all keys defined in `SettingsKey` enum and defaults in `SettingsDefaults`.
