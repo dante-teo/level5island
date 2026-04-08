@@ -58,4 +58,13 @@ enum Design {
     // MARK: - Card
     static let cardRadius: CGFloat = 12
     static let cardPadding: CGFloat = 12
+
+    /// Compact relative time: "<1m", "5m", "2h", "1d"
+    static func timeAgo(_ date: Date) -> String {
+        let seconds = Int(-date.timeIntervalSinceNow)
+        if seconds < 60 { return "<1m" }
+        if seconds < 3600 { return "\(seconds / 60)m" }
+        if seconds < 86400 { return "\(seconds / 3600)h" }
+        return "\(seconds / 86400)d"
+    }
 }

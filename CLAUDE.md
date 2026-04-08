@@ -48,17 +48,25 @@ AI Tool hook → level5island-bridge → Unix socket → HookServer
 ### Key patterns
 
 - **Pure reducer**: `SessionSnapshot.reduceEvent()` is a pure mutating function that returns `[SideEffect]` — all state changes go through it
+- **State machine**: `AgentStatus.canTransition(to:)` validates all status transitions; the reducer gates every `session.status = X` assignment through it
 - **Side effects**: Returned from the reducer, executed by `AppState` (sounds, process monitoring, UI triggers)
+- **Intervention caching**: `InterventionCache` (30s TTL) auto-replays answers when Claude Code retries the same `AskUserQuestion`
+- **Interrupt detection**: `InterruptWatcher` monitors session JSONL files via `DispatchSource` as a fallback when the hook doesn't fire on Ctrl+C
 - **Claude Code only**: single CLI source with direct PascalCase event names
 
 ### Key files
 
 - `SessionSnapshot.swift` — Core state model + `reduceEvent()` reducer
-- `Models.swift` — `HookEvent`, `AgentStatus`, `ToolHistoryEntry`, `ChatMessage`
+- `Models.swift` — `HookEvent`, `AgentStatus` (with `canTransition`/`needsAttention`/`isActive`), `QuestionPayload`
 - `AppState.swift` — Observable main state, session lifecycle, effect execution
 - `ConfigInstaller.swift` — Auto-installs Claude Code hooks into `~/.claude/settings.json`
-- `DesignTokens.swift` — `Design` enum: colors, typography, spacing tokens for UI
+- `DesignTokens.swift` — `Design` enum: colors, typography, spacing, `timeAgo()` for UI
 - `NotchPanelView.swift` — Main panel UI (compact + expanded modes)
+- `QuestionFormView.swift` — Question form: multi-select, secret input, markdown, "other" option
+- `MarkdownText.swift` — Inline markdown rendering via `ChatMessageTextFormatter` cache
+- `InterventionCache.swift` — TTL cache for repeated question auto-replay
+- `InterruptWatcher.swift` — JSONL file watcher for interrupt detection
+- `SessionHoverCard.swift` — Hover preview card for compact bar sessions
 - `PanelWindowController.swift` — Window positioning, visibility, notch detection
 - `TerminalActivator.swift` — Jump-to-terminal: window focus + tab switching
 - `Settings.swift` — `SettingsManager` singleton, `SettingsKey` enum, UserDefaults-backed

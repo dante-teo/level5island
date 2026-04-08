@@ -1,11 +1,46 @@
 import Foundation
 
-public enum AgentStatus {
+public enum AgentStatus: Equatable, Sendable {
     case idle
     case processing
-    case running
-    case waitingApproval
-    case waitingQuestion
+    case running          // active tool execution
+    case waitingApproval  // permission blocked
+    case waitingQuestion  // question blocked
+    case compacting       // context compression
+
+    /// Whether the status needs user attention (approval or question).
+    public var needsAttention: Bool {
+        self == .waitingApproval || self == .waitingQuestion
+    }
+
+    /// Whether the status represents active work (processing or running).
+    public var isActive: Bool {
+        self == .processing || self == .running
+    }
+
+    /// Validates whether a transition to `next` is allowed.
+    public func canTransition(to next: AgentStatus) -> Bool {
+        if self == next { return next == .waitingApproval }
+        switch (self, next) {
+        case (.idle, .processing), (.idle, .running), (.idle, .waitingApproval),
+             (.idle, .waitingQuestion), (.idle, .compacting):
+            return true
+        case (.processing, .running), (.processing, .idle), (.processing, .waitingApproval),
+             (.processing, .waitingQuestion), (.processing, .compacting):
+            return true
+        case (.running, .processing), (.running, .idle), (.running, .waitingApproval),
+             (.running, .waitingQuestion):
+            return true
+        case (.waitingApproval, .processing), (.waitingApproval, .idle):
+            return true
+        case (.waitingQuestion, .processing), (.waitingQuestion, .idle):
+            return true
+        case (.compacting, .processing), (.compacting, .idle), (.compacting, .waitingApproval):
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 public struct HookEvent {
@@ -93,22 +128,43 @@ public struct QuestionPayload {
     public let options: [String]?
     public let descriptions: [String]?
     public let header: String?
+    public let isSecret: Bool         // secure text field
+    public let allowsMultiple: Bool   // checkbox multi-select
+    public let allowsOther: Bool      // "other" free-text option
 
-    public init(question: String, options: [String]?, descriptions: [String]? = nil, header: String? = nil) {
+    public init(
+        question: String,
+        options: [String]?,
+        descriptions: [String]? = nil,
+        header: String? = nil,
+        isSecret: Bool = false,
+        allowsMultiple: Bool = false,
+        allowsOther: Bool = false
+    ) {
         self.question = question
         self.options = options
         self.descriptions = descriptions
         self.header = header
+        self.isSecret = isSecret
+        self.allowsMultiple = allowsMultiple
+        self.allowsOther = allowsOther
     }
 
     /// Try to extract question from a Notification hook event
     public static func from(event: HookEvent) -> QuestionPayload? {
         if let question = event.rawJSON["question"] as? String {
             let options = event.rawJSON["options"] as? [String]
-            return QuestionPayload(question: question, options: options)
+            let isSecret = event.rawJSON["is_secret"] as? Bool ?? false
+            let allowsMultiple = event.rawJSON["allows_multiple"] as? Bool ?? false
+            let allowsOther = event.rawJSON["allows_other"] as? Bool ?? false
+            return QuestionPayload(
+                question: question,
+                options: options,
+                isSecret: isSecret,
+                allowsMultiple: allowsMultiple,
+                allowsOther: allowsOther
+            )
         }
-        // Don't use "?" heuristic — normal status text like "Should I update tests?"
-        // would be misclassified as a blocking question, stalling the hook.
         return nil
     }
 }

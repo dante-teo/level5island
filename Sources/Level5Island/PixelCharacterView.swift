@@ -20,9 +20,9 @@ struct ClawdView: View {
     var body: some View {
         ZStack {
             switch status {
-            case .idle:                 sleepScene
-            case .processing, .running: workScene
-            case .waitingApproval, .waitingQuestion: alertScene
+            case .idle:                              sleepScene
+            case .processing, .running, .compacting: workScene
+            case .waitingApproval, .waitingQuestion:  alertScene
             }
         }
         .frame(width: size, height: size)

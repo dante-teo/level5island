@@ -266,8 +266,13 @@ public func deriveSessionSummary(from sessions: [String: SessionSnapshot]) -> Se
                 source = session.source
             }
         case .running:
-            if highestStatus == .idle || highestStatus == .processing {
+            if highestStatus == .idle || highestStatus == .processing || highestStatus == .compacting {
                 highestStatus = .running
+                source = session.source
+            }
+        case .compacting:
+            if highestStatus == .idle || highestStatus == .processing {
+                highestStatus = .compacting
                 source = session.source
             }
         case .processing:
@@ -337,10 +342,6 @@ public func reduceEvent(
         if handled { return effects }
     }
 
-    // Preserve actionable states: don't let activity updates overwrite waiting states
-    let isWaiting = sessions[sessionId]?.status == .waitingApproval
-        || sessions[sessionId]?.status == .waitingQuestion
-
     // Update this session's state
     switch eventName {
     case "UserPromptSubmit":
@@ -362,7 +363,7 @@ public func reduceEvent(
             sessions[sessionId]?.addRecentMessage(ChatMessage(isUser: true, text: prompt))
         }
     case "PreToolUse":
-        if !isWaiting {
+        if sessions[sessionId]?.status.canTransition(to: .running) == true {
             sessions[sessionId]?.status = .running
             sessions[sessionId]?.currentTool = event.toolName
             sessions[sessionId]?.toolDescription = event.toolDescription
@@ -372,7 +373,7 @@ public func reduceEvent(
             let desc = sessions[sessionId]?.toolDescription
             sessions[sessionId]?.recordTool(tool, description: desc, success: true, agentType: nil, maxHistory: maxHistory)
         }
-        if !isWaiting {
+        if sessions[sessionId]?.status.canTransition(to: .processing) == true {
             sessions[sessionId]?.status = .processing
             sessions[sessionId]?.currentTool = nil
             sessions[sessionId]?.toolDescription = nil
@@ -382,25 +383,25 @@ public func reduceEvent(
             let desc = sessions[sessionId]?.toolDescription
             sessions[sessionId]?.recordTool(tool, description: desc, success: false, agentType: nil, maxHistory: maxHistory)
         }
-        if !isWaiting {
+        if sessions[sessionId]?.status.canTransition(to: .processing) == true {
             sessions[sessionId]?.status = .processing
             sessions[sessionId]?.currentTool = nil
             sessions[sessionId]?.toolDescription = nil
         }
     case "PermissionDenied":
-        if !isWaiting {
+        if sessions[sessionId]?.status.canTransition(to: .processing) == true {
             sessions[sessionId]?.status = .processing
             sessions[sessionId]?.currentTool = nil
             sessions[sessionId]?.toolDescription = nil
         }
     case "SubagentStart":
-        if !isWaiting {
+        if sessions[sessionId]?.status.canTransition(to: .running) == true {
             sessions[sessionId]?.status = .running
             sessions[sessionId]?.currentTool = "Agent"
             sessions[sessionId]?.toolDescription = event.rawJSON["agent_type"] as? String
         }
     case "SubagentStop":
-        if !isWaiting {
+        if sessions[sessionId]?.status.canTransition(to: .processing) == true {
             sessions[sessionId]?.status = .processing
             sessions[sessionId]?.currentTool = nil
             sessions[sessionId]?.toolDescription = nil
@@ -464,8 +465,10 @@ public func reduceEvent(
             sessions[sessionId]?.status = .waitingQuestion
         }
     case "PreCompact":
-        sessions[sessionId]?.status = .processing
-        sessions[sessionId]?.toolDescription = "Compacting context\u{2026}"
+        if sessions[sessionId]?.status.canTransition(to: .compacting) == true {
+            sessions[sessionId]?.status = .compacting
+            sessions[sessionId]?.toolDescription = "Compacting context\u{2026}"
+        }
     default:
         break
     }

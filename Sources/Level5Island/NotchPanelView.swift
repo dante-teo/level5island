@@ -128,10 +128,8 @@ struct NotchPanelView: View {
                     case .questionCard(let sid):
                         let session = appState.sessions[sid]
                         if let q = appState.pendingQuestion {
-                            QuestionBar(
-                                question: q.question.question,
-                                options: q.question.options,
-                                descriptions: q.question.descriptions,
+                            QuestionFormView(
+                                question: q.question,
                                 sessionSource: session?.source,
                                 sessionContext: session?.cwd,
                                 queuePosition: 1,
@@ -141,10 +139,8 @@ struct NotchPanelView: View {
                             )
                             .transition(.cardReveal)
                         } else if let preview = appState.previewQuestionPayload {
-                            QuestionBar(
-                                question: preview.question,
-                                options: preview.options,
-                                descriptions: preview.descriptions,
+                            QuestionFormView(
+                                question: preview,
                                 sessionSource: session?.source,
                                 sessionContext: session?.cwd,
                                 queuePosition: 1,
@@ -287,9 +283,11 @@ struct NotchPanelView: View {
     let showToolStatus: Bool
     @AppStorage(SettingsKey.sessionGroupingMode) private var groupingMode = SettingsDefaults.sessionGroupingMode
 
+    private var displaySessionId: String? {
+        appState.rotatingSessionId ?? appState.activeSessionId ?? appState.sessions.keys.sorted().first
+    }
     private var displaySession: SessionSnapshot? {
-        let sid = appState.rotatingSessionId ?? appState.activeSessionId ?? appState.sessions.keys.sorted().first
-        guard let sid else { return nil }
+        guard let sid = displaySessionId else { return nil }
         return appState.sessions[sid]
     }
     private var displaySource: String { displaySession?.source ?? appState.primarySource }
@@ -297,6 +295,8 @@ struct NotchPanelView: View {
     private var liveTool: String? { displaySession?.currentTool }
     @State private var shownTool: String?
     @State private var lingerTimer: Timer?
+    @State private var hoverPreviewTimer: Timer?
+    @State private var showHoverCard = false
 
     var body: some View {
         HStack(spacing: 6) {
@@ -330,6 +330,23 @@ struct NotchPanelView: View {
                     .id(displaySource)
                     .transition(.opacity)
                     .animation(.easeInOut(duration: 0.3), value: displaySource)
+                    .onHover { hovering in
+                        hoverPreviewTimer?.invalidate()
+                        if hovering {
+                            hoverPreviewTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                                Task { @MainActor in
+                                    showHoverCard = true
+                                }
+                            }
+                        } else {
+                            showHoverCard = false
+                        }
+                    }
+                    .popover(isPresented: $showHoverCard, arrowEdge: .bottom) {
+                        if let session = displaySession, let sid = displaySessionId {
+                            SessionHoverCard(session: session, sessionId: sid)
+                        }
+                    }
 
                 // On notch screens, show tool name only (no description, space is tight)
                 if hasNotch, showToolStatus, let tool = shownTool {
@@ -396,7 +413,7 @@ private struct CompactRightWing: View {
                 }
             } else {
                 // Pending approval/question badge
-                if appState.status == .waitingApproval || appState.status == .waitingQuestion {
+                if appState.status.needsAttention {
                     Image(systemName: "bell.fill")
                         .font(.system(size: 9, weight: .bold))
                         .foregroundStyle(Design.statusWarning)
@@ -851,137 +868,9 @@ private struct ApprovalBar: View {
     }
 }
 
-// MARK: - Question Bar (below notch, auto-expanded)
-
-private struct QuestionBar: View {
-    let question: String
-    let options: [String]?
-    let descriptions: [String]?
-    let sessionSource: String?
-    let sessionContext: String?
-    let queuePosition: Int
-    let queueTotal: Int
-    let onAnswer: (String) -> Void
-    let onSkip: () -> Void
-
-    @State private var textInput = ""
-    @FocusState private var isFocused: Bool
-    @State private var selectedIndex: Int? = nil
-
-    private let accent = Design.statusQuestion
-
-    var body: some View {
-        VStack(spacing: Design.spacingSM) {
-            // Session context
-            if sessionSource != nil || sessionContext != nil {
-                HStack(spacing: 5) {
-                    if sessionSource != nil {
-                        ClaudeLogo(size: 12)
-                    }
-                    if let cwd = sessionContext {
-                        Image(systemName: "folder.fill")
-                            .font(.system(size: 8))
-                            .foregroundStyle(.tertiary)
-                        Text((cwd as NSString).lastPathComponent)
-                            .font(Design.caption(9))
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                }
-                .padding(.horizontal, 14)
-            }
-
-            // Header
-            HStack(spacing: 6) {
-                Image(systemName: "questionmark.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(accent)
-                Text(question)
-                    .font(Design.body(11, weight: .medium))
-                    .foregroundStyle(.primary)
-                    .lineLimit(3)
-                if queueTotal > 1 {
-                    Text("\(queuePosition)/\(queueTotal)")
-                        .font(Design.caption(9, weight: .bold)).monospacedDigit()
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1)
-                        .background(.quaternary)
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                }
-                Spacer()
-            }
-            .padding(.horizontal, 14)
-
-            // Options
-            if let options = options, !options.isEmpty {
-                VStack(spacing: 4) {
-                    ForEach(Array(options.enumerated()), id: \.offset) { idx, option in
-                        let desc = descriptions?.indices.contains(idx) == true ? descriptions?[idx] : nil
-                        OptionRow(index: idx + 1, label: option, description: desc, isSelected: selectedIndex == idx, accent: accent) {
-                            selectedIndex = idx
-                            onAnswer(option)
-                        }
-                    }
-                }
-                .padding(.horizontal, 14)
-            } else {
-                // Text input
-                HStack(spacing: 6) {
-                    TextField(L10n.shared["type_answer"], text: $textInput)
-                        .textFieldStyle(.plain)
-                        .font(Design.mono(10.5))
-                        .foregroundStyle(.primary)
-                        .focused($isFocused)
-                        .onSubmit {
-                            if !textInput.isEmpty { onAnswer(textInput) }
-                        }
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 6)
-                .background(.quaternary)
-                .cornerRadius(6)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(.white.opacity(0.1), lineWidth: 0.5)
-                )
-                .padding(.horizontal, 14)
-            }
-
-            // Skip button
-            HStack(spacing: 6) {
-                PixelButton(
-                    label: L10n.shared["skip"],
-                    fg: .secondary,
-                    bg: .white.opacity(0.06),
-                    border: .white.opacity(0.12),
-                    action: onSkip
-                )
-                if options == nil || options?.isEmpty == true {
-                    PixelButton(
-                        label: L10n.shared["submit"],
-                        fg: .white,
-                        bg: Design.statusActive.opacity(0.5),
-                        border: Design.statusActive.opacity(0.4),
-                        action: { if !textInput.isEmpty { onAnswer(textInput) } }
-                    )
-                }
-            }
-            .padding(.horizontal, 14)
-        }
-        .padding(.vertical, 10)
-        .overlay(alignment: .top) {
-            Design.statusQuestion.opacity(0.35)
-                .frame(height: 1)
-                .blur(radius: 2)
-        }
-        .onAppear { isFocused = true }
-    }
-}
-
 // MARK: - Option Row
 
-private struct OptionRow: View {
+struct OptionRow: View {
     let index: Int
     let label: String
     let description: String?
@@ -1035,7 +924,7 @@ private struct OptionRow: View {
     }
 }
 
-private struct PixelButton: View {
+struct PixelButton: View {
     let label: String
     let fg: Color
     let bg: Color
@@ -1094,7 +983,7 @@ private struct PixelButton: View {
             let groups: [(Set<AgentStatus>, String)] = [
                 ([.running], l10n["status_running"]),
                 ([.waitingApproval, .waitingQuestion], l10n["status_waiting"]),
-                ([.processing], l10n["status_processing"]),
+                ([.processing, .compacting], l10n["status_processing"]),
                 ([.idle], l10n["status_idle"]),
             ]
             var result: [(String, String?, [String])] = []
@@ -1367,9 +1256,9 @@ private struct SessionCard: View {
             return Design.statusError
         }
         switch session.status {
-        case .processing, .running:              return Design.statusActive
-        case .waitingApproval, .waitingQuestion:  return Design.statusWarning
-        case .idle:                               return .primary
+        case .processing, .running, .compacting:  return Design.statusActive
+        case .waitingApproval, .waitingQuestion:   return Design.statusWarning
+        case .idle:                                return .primary
         }
     }
 
@@ -1421,7 +1310,7 @@ private struct SessionCard: View {
                         if session.interrupted {
                             SessionTag("INT", color: Design.statusWarning)
                         }
-                        SessionTag(timeAgo(session.startTime))
+                        SessionTag(Design.timeAgo(session.startTime))
                         TerminalJumpButton(session: session, sessionId: sessionId)
                     }
                 }
@@ -1550,13 +1439,6 @@ private struct SessionCard: View {
         ChatMessageTextFormatter.literalText(text)
     }
 
-    private func timeAgo(_ date: Date) -> String {
-        let seconds = Int(-date.timeIntervalSinceNow)
-        if seconds < 60 { return "<1m" }
-        if seconds < 3600 { return "\(seconds / 60)m" }
-        if seconds < 86400 { return "\(seconds / 3600)h" }
-        return "\(seconds / 86400)d"
-    }
 }
 
 // MARK: - Claude Logo (official sunburst from simple-icons, viewBox 0 0 24 24)

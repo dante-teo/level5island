@@ -86,7 +86,7 @@ final class AppState {
         //    - processing with no tool (e.g. lost Stop event): 60 seconds
         //    - running/processing with a tool: 3 minutes (long build, deep thinking)
         //    Skip sessions with a live process monitor for the long timeout.
-        for (key, session) in sessions where session.status != .idle && session.status != .waitingApproval && session.status != .waitingQuestion {
+        for (key, session) in sessions where session.status != .idle && !session.status.needsAttention {
             if processMonitors[key] != nil { continue }
             let elapsed = -session.lastActivity.timeIntervalSinceNow
             let shouldReset = (session.status == .processing && session.currentTool == nil && elapsed > 60)
@@ -177,6 +177,7 @@ final class AppState {
         }
         sessions.removeValue(forKey: sessionId)
         stopMonitor(sessionId)
+        InterruptWatcherManager.shared.stopWatching(sessionId: sessionId)
         if activeSessionId == sessionId {
             activeSessionId = mostActiveSessionId()
         }
@@ -420,7 +421,7 @@ final class AppState {
         }
 
         let prevStatus = sessions[sessionId]?.status
-        let wasWaiting = prevStatus == .waitingApproval || prevStatus == .waitingQuestion
+        let wasWaiting = prevStatus?.needsAttention == true
 
         let effects = reduceEvent(sessions: &sessions, event: event, maxHistory: maxHistory)
 
@@ -438,8 +439,7 @@ final class AppState {
             if Self.clearsWaiting.contains(event.eventName) {
                 drainPermissions(forSession: sessionId)
                 drainQuestions(forSession: sessionId)
-                if sessions[sessionId]?.status == .waitingApproval
-                    || sessions[sessionId]?.status == .waitingQuestion {
+                if sessions[sessionId]?.status.needsAttention == true {
                     sessions[sessionId]?.status = (event.eventName == "Stop") ? .idle : .processing
                     sessions[sessionId]?.currentTool = nil
                     sessions[sessionId]?.toolDescription = nil
@@ -477,6 +477,9 @@ final class AppState {
         case .tryMonitorSession(let sid):
             if processMonitors[sid] == nil {
                 tryMonitorSession(sid)
+            }
+            if let cwd = sessions[sid]?.cwd {
+                InterruptWatcherManager.shared.startWatching(sessionId: sid, cwd: cwd)
             }
         case .stopMonitor(let sid):
             stopMonitor(sid)
@@ -614,22 +617,34 @@ final class AppState {
            let first = questions.first {
             let questionText = first["question"] as? String ?? "Question"
             let header = first["header"] as? String
+            let isSecret = first["is_secret"] as? Bool ?? false
+            let allowsMultiple = first["allows_multiple"] as? Bool ?? false
+            let allowsOther = first["allows_other"] as? Bool ?? false
             var optionLabels: [String]?
             var optionDescs: [String]?
             if let opts = first["options"] as? [[String: Any]] {
                 optionLabels = opts.compactMap { $0["label"] as? String }
                 optionDescs = opts.compactMap { $0["description"] as? String }
             }
-            payload = QuestionPayload(question: questionText, options: optionLabels, descriptions: optionDescs, header: header)
+            payload = QuestionPayload(
+                question: questionText, options: optionLabels, descriptions: optionDescs,
+                header: header, isSecret: isSecret, allowsMultiple: allowsMultiple, allowsOther: allowsOther
+            )
         } else {
             let questionText = event.toolInput?["question"] as? String ?? "Question"
+            let isSecret = event.toolInput?["is_secret"] as? Bool ?? false
+            let allowsMultiple = event.toolInput?["allows_multiple"] as? Bool ?? false
+            let allowsOther = event.toolInput?["allows_other"] as? Bool ?? false
             var options: [String]?
             if let stringOpts = event.toolInput?["options"] as? [String] {
                 options = stringOpts
             } else if let dictOpts = event.toolInput?["options"] as? [[String: Any]] {
                 options = dictOpts.compactMap { $0["label"] as? String }
             }
-            payload = QuestionPayload(question: questionText, options: options)
+            payload = QuestionPayload(
+                question: questionText, options: options,
+                isSecret: isSecret, allowsMultiple: allowsMultiple, allowsOther: allowsOther
+            )
         }
 
         drainPermissions(forSession: sessionId)
@@ -721,13 +736,26 @@ final class AppState {
 
         drainQuestions(forSession: sessionId)
         drainPermissions(forSession: sessionId)
-        let currentStatus = sessions[sessionId]?.status
-        if currentStatus == .waitingApproval || currentStatus == .waitingQuestion {
+        if sessions[sessionId]?.status.needsAttention == true {
             sessions[sessionId]?.status = .processing
             sessions[sessionId]?.currentTool = nil
             sessions[sessionId]?.toolDescription = nil
         }
         showNextPending()
+        refreshDerivedState()
+    }
+
+    /// Called by InterruptWatcher when a JSONL interrupt pattern is detected
+    func handleDetectedInterrupt(sessionId: String) {
+        guard let session = sessions[sessionId], session.status != .idle else { return }
+        sessions[sessionId]?.interrupted = true
+        sessions[sessionId]?.status = .idle
+        sessions[sessionId]?.currentTool = nil
+        sessions[sessionId]?.toolDescription = nil
+        drainPermissions(forSession: sessionId)
+        drainQuestions(forSession: sessionId)
+        showNextPending()
+        enqueueCompletion(sessionId)
         refreshDerivedState()
     }
 
@@ -807,6 +835,9 @@ final class AppState {
 
     func startSessionDiscovery() {
         startCleanupTimer()
+        InterruptWatcherManager.shared.onInterruptDetected = { [weak self] sessionId in
+            self?.handleDetectedInterrupt(sessionId: sessionId)
+        }
 
         // Initial scan for already-running Claude sessions
         Task.detached {

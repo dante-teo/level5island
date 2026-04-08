@@ -10,6 +10,7 @@ class HookServer {
     private let appState: AppState
     nonisolated static var socketPath: String { SocketPath.path }
     private var listener: NWListener?
+    private var interventionCache = InterventionCache()
 
     init(appState: AppState) {
         self.appState = appState
@@ -134,10 +135,45 @@ class HookServer {
 
             // AskUserQuestion is a question, not a permission — route to QuestionBar
             if event.toolName == "AskUserQuestion" {
+                // Check cache for repeated questions (e.g. agent loops, retries)
+                let questionText = event.toolInput?["question"] as? String
+                    ?? event.toolInput?["questions"].flatMap({ ($0 as? [[String: Any]])?.first?["question"] as? String })
+                    ?? ""
+                if !questionText.isEmpty,
+                   let cached = interventionCache.lookup(sessionId: sessionId, question: questionText) {
+                    log.info("Intervention cache hit for session \(sessionId)")
+                    // Replay the cached answer
+                    let obj: [String: Any] = [
+                        "hookSpecificOutput": [
+                            "hookEventName": "PermissionRequest",
+                            "decision": [
+                                "behavior": "allow",
+                                "updatedInput": [
+                                    "answers": ["answer": cached]
+                                ]
+                            ] as [String: Any]
+                        ] as [String: Any]
+                    ]
+                    let data = (try? JSONSerialization.data(withJSONObject: obj)) ?? Data("{}".utf8)
+                    sendResponse(connection: connection, data: data)
+                    return
+                }
+
                 monitorPeerDisconnect(connection: connection, sessionId: sessionId)
                 Task {
                     let responseBody = await withCheckedContinuation { continuation in
                         appState.handleAskUserQuestion(event, continuation: continuation)
+                    }
+                    // Record the answer in cache for replay
+                    if !questionText.isEmpty,
+                       let json = try? JSONSerialization.jsonObject(with: responseBody) as? [String: Any],
+                       let hookOutput = json["hookSpecificOutput"] as? [String: Any],
+                       let decision = hookOutput["decision"] as? [String: Any],
+                       let behavior = decision["behavior"] as? String, behavior == "allow",
+                       let updatedInput = decision["updatedInput"] as? [String: Any],
+                       let answers = updatedInput["answers"] as? [String: String],
+                       let answer = answers.values.first {
+                        self.interventionCache.record(sessionId: sessionId, question: questionText, answer: answer)
                     }
                     self.sendResponse(connection: connection, data: responseBody)
                 }
