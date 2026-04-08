@@ -2,6 +2,7 @@ import Foundation
 
 public enum ChatMessageTextFormatter {
     private static var markdownCache: [String: AttributedString] = [:]
+    private static var markdownInsertOrder: [String] = []
     private static let markdownCacheLimit = 128
 
     public static func displayText(for message: ChatMessage) -> AttributedString {
@@ -26,9 +27,14 @@ public enum ChatMessageTextFormatter {
         }
 
         if markdownCache.count >= markdownCacheLimit {
-            markdownCache.removeAll(keepingCapacity: true)
+            let evictCount = markdownCacheLimit / 2
+            for key in markdownInsertOrder.prefix(evictCount) {
+                markdownCache.removeValue(forKey: key)
+            }
+            markdownInsertOrder.removeFirst(evictCount)
         }
         markdownCache[text] = result
+        markdownInsertOrder.append(text)
         return result
     }
 }

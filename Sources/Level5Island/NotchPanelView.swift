@@ -29,11 +29,9 @@ struct NotchPanelView: View {
     /// Delayed hover: prevents accidental expansion when mouse passes through
     @State private var hoverTimer: Timer?
     @State private var idleHovered = false
-    /// Curtain animation for tool status toggle
     @State private var curtainOffset: CGFloat = 0
     @State private var curtainOpacity: Double = 1
     @State private var displayedToolStatus: Bool = SettingsDefaults.showToolStatus
-    /// Content stagger: reveals content slightly after panel shape expands
     @State private var contentVisible = false
 
     private var isActive: Bool { !appState.sessions.isEmpty }
@@ -42,16 +40,12 @@ struct NotchPanelView: View {
     private var showIdleIndicator: Bool {
         !isActive && !hideWhenNoSession
     }
-    /// Whether the bar content should be visible (hideWhenNoSession is enforced at the window level)
     private var showBar: Bool { isActive }
     private var shouldShowExpanded: Bool {
         showBar && appState.surface.isExpanded
     }
 
-    /// Mascot size — fits within the menu bar height
     private var mascotSize: CGFloat { min(27, notchHeight - 6) }
-
-    /// Minimum wing width needed to display compact bar content
     private var compactWingWidth: CGFloat { mascotSize + 14 }
 
     /// Total panel width — adapts based on state and screen geometry
@@ -1137,7 +1131,7 @@ private struct SessionIdentityLine: View {
     var body: some View {
         HStack(spacing: 4) {
             ProjectNameLink(
-                name: session.projectDisplayName,
+                name: session.displayName,
                 cwd: session.cwd,
                 fontSize: projectFontSize,
                 color: projectColor,
@@ -1780,26 +1774,7 @@ struct MiniAgentIcon: View {
 
 // MARK: - Shared Helpers
 
-/// Inline markdown rendering (bold, italic, code, links)
-private var markdownCache: [String: AttributedString] = [:]
-private let markdownCacheLimit = 128
 
-private func inlineMarkdown(_ text: String) -> AttributedString {
-    if let cached = markdownCache[text] { return cached }
-    let result: AttributedString
-    if let attr = try? AttributedString(markdown: text, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)) {
-        result = attr
-    } else {
-        result = AttributedString(text)
-    }
-    if markdownCache.count >= markdownCacheLimit {
-        markdownCache.removeAll(keepingCapacity: true)
-    }
-    markdownCache[text] = result
-    return result
-}
-
-/// Generate a short session ID with better disambiguation.
 private func shortSessionId(_ id: String) -> String {
     let clean = id.replacingOccurrences(of: "-", with: "")
     if clean.count >= 8 {

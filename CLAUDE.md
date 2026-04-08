@@ -41,13 +41,13 @@ No external dependencies — uses only SPM with system frameworks (SwiftUI, AppK
 **Data flow** (unidirectional, Redux-like):
 ```
 AI Tool hook → level5island-bridge → Unix socket → HookServer
-  → HookEvent parsed → SessionSnapshot.reduceEvent() → [SideEffect]
+  → HookEvent parsed → reduceEvent() → [SideEffect]
     → AppState executes effects → SwiftUI observes changes
 ```
 
 ### Key patterns
 
-- **Pure reducer**: `SessionSnapshot.reduceEvent()` is a pure mutating function that returns `[SideEffect]` — all state changes go through it
+- **Pure reducer**: `reduceEvent(sessions:event:maxHistory:)` is a pure function that returns `[SideEffect]` — all state changes go through it
 - **State machine**: `AgentStatus.canTransition(to:)` validates all status transitions; the reducer gates every `session.status = X` assignment through it
 - **Side effects**: Returned from the reducer, executed by `AppState` (sounds, process monitoring, UI triggers)
 - **Intervention caching**: `InterventionCache` (30s TTL) auto-replays answers when Claude Code retries the same `AskUserQuestion`
@@ -63,7 +63,8 @@ AI Tool hook → level5island-bridge → Unix socket → HookServer
 - `DesignTokens.swift` — `Design` enum: colors, typography, spacing, `timeAgo()` for UI
 - `NotchPanelView.swift` — Main panel UI (compact + expanded modes)
 - `QuestionFormView.swift` — Question form: multi-select, secret input, markdown, "other" option
-- `MarkdownText.swift` — Inline markdown rendering via `ChatMessageTextFormatter` cache
+- `ChatMessageTextFormatter.swift` — Shared markdown cache with LRU eviction
+- `MarkdownText.swift` — Inline markdown rendering view
 - `InterventionCache.swift` — TTL cache for repeated question auto-replay
 - `InterruptWatcher.swift` — JSONL file watcher for interrupt detection
 - `SessionHoverCard.swift` — Hover preview card for compact bar sessions

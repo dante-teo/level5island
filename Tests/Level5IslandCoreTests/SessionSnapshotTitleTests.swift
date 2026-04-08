@@ -21,11 +21,11 @@ final class SessionSnapshotTitleTests: XCTestCase {
         )
     }
 
-    func testProjectDisplayNameStillUsesFolderName() {
+    func testDisplayNameStillUsesFolderName() {
         var snapshot = SessionSnapshot()
         snapshot.cwd = "/Users/wangnov/Level5Island"
 
-        XCTAssertEqual(snapshot.projectDisplayName, "Level5Island")
+        XCTAssertEqual(snapshot.displayName, "Level5Island")
     }
 
     func testDisplaySessionIdPrefersProviderSessionId() {
@@ -47,7 +47,7 @@ final class SessionSnapshotTitleTests: XCTestCase {
         )
     }
 
-    func testSessionTitleAssignmentDoesNotOverwriteProjectDisplayName() {
+    func testSessionTitleAssignmentDoesNotOverwriteDisplayName() {
         var snapshot = SessionSnapshot()
         snapshot.cwd = "/Users/wangnov/Level5Island"
         snapshot.sessionTitle = "查看图标bug和窗口大小bug解法"
@@ -56,6 +56,6 @@ final class SessionSnapshotTitleTests: XCTestCase {
             snapshot.displayTitle(sessionId: "019d6331-3593-7b53-9513-c1dd25d708b0"),
             "查看图标bug和窗口大小bug解法"
         )
-        XCTAssertEqual(snapshot.projectDisplayName, "Level5Island")
+        XCTAssertEqual(snapshot.displayName, "Level5Island")
     }
 }

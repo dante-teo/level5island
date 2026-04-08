@@ -88,7 +88,6 @@ public struct SessionSnapshot {
         return lastAssistantMessage.map { String($0.prefix(80)) }
     }
 
-    /// Display name: project folder, or short session ID
     public var displayName: String {
         if let cwd = cwd {
             return (cwd as NSString).lastPathComponent
@@ -110,17 +109,12 @@ public struct SessionSnapshot {
         return sessionId
     }
 
-    public var projectDisplayName: String {
-        displayName
-    }
-
     public var sessionLabel: String? {
         guard let sessionTitle else { return nil }
         let trimmed = sessionTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         return trimmed.isEmpty ? nil : trimmed
     }
 
-    /// Shortened model name: "claude-opus-4-6" → "opus"
     public var shortModelName: String? {
         guard let model = model else { return nil }
         let lower = model.lowercased()
@@ -133,16 +127,6 @@ public struct SessionSnapshot {
         }
         return String(model.prefix(8))
     }
-
-    /// Source label for display
-    public var sourceLabel: String {
-        "Claude"
-    }
-
-    public var isClaude: Bool { source == "claude" }
-
-    /// Claude Code is always a CLI tool, never a native app mode.
-    public var isNativeAppMode: Bool { false }
 
     /// True when the session runs inside an IDE's integrated terminal.
     public var isIDETerminal: Bool {
@@ -169,7 +153,6 @@ public struct SessionSnapshot {
         return termApp?.lowercased() == "ghostty"
     }
 
-    /// Short terminal/app name for display tag
     public var terminalName: String? {
         if let bid = termBundleId {
             let lower = bid.lowercased()
@@ -215,7 +198,6 @@ public struct SessionSnapshot {
         return app
     }
 
-    /// Subtitle: cwd path or model info
     public var subtitle: String? {
         if let cwd = cwd {
             // Show parent/folder instead of just folder
@@ -320,8 +302,14 @@ public func reduceEvent(
     let eventName = event.eventName
     var effects: [SideEffect] = []
 
-    // Ensure session exists
-    if sessions[sessionId] == nil {
+    // SessionStart resets the session before metadata extraction
+    if eventName == "SessionStart" {
+        effects.append(.stopMonitor(sessionId: sessionId))
+        sessions[sessionId] = SessionSnapshot(startTime: Date())
+        if let roots = event.rawJSON["workspace_roots"] as? [String], let first = roots.first, !first.isEmpty {
+            sessions[sessionId]?.cwd = first
+        }
+    } else if sessions[sessionId] == nil {
         sessions[sessionId] = SessionSnapshot()
     }
 
@@ -368,32 +356,15 @@ public func reduceEvent(
             sessions[sessionId]?.currentTool = event.toolName
             sessions[sessionId]?.toolDescription = event.toolDescription
         }
-    case "PostToolUse":
+    case "PostToolUse", "PostToolUseFailure":
+        let success = eventName == "PostToolUse"
         if let tool = sessions[sessionId]?.currentTool {
             let desc = sessions[sessionId]?.toolDescription
-            sessions[sessionId]?.recordTool(tool, description: desc, success: true, agentType: nil, maxHistory: maxHistory)
+            sessions[sessionId]?.recordTool(tool, description: desc, success: success, agentType: nil, maxHistory: maxHistory)
         }
-        if sessions[sessionId]?.status.canTransition(to: .processing) == true {
-            sessions[sessionId]?.status = .processing
-            sessions[sessionId]?.currentTool = nil
-            sessions[sessionId]?.toolDescription = nil
-        }
-    case "PostToolUseFailure":
-        if let tool = sessions[sessionId]?.currentTool {
-            let desc = sessions[sessionId]?.toolDescription
-            sessions[sessionId]?.recordTool(tool, description: desc, success: false, agentType: nil, maxHistory: maxHistory)
-        }
-        if sessions[sessionId]?.status.canTransition(to: .processing) == true {
-            sessions[sessionId]?.status = .processing
-            sessions[sessionId]?.currentTool = nil
-            sessions[sessionId]?.toolDescription = nil
-        }
+        finishTool(sessions: &sessions, sessionId: sessionId)
     case "PermissionDenied":
-        if sessions[sessionId]?.status.canTransition(to: .processing) == true {
-            sessions[sessionId]?.status = .processing
-            sessions[sessionId]?.currentTool = nil
-            sessions[sessionId]?.toolDescription = nil
-        }
+        finishTool(sessions: &sessions, sessionId: sessionId)
     case "SubagentStart":
         if sessions[sessionId]?.status.canTransition(to: .running) == true {
             sessions[sessionId]?.status = .running
@@ -401,11 +372,7 @@ public func reduceEvent(
             sessions[sessionId]?.toolDescription = event.rawJSON["agent_type"] as? String
         }
     case "SubagentStop":
-        if sessions[sessionId]?.status.canTransition(to: .processing) == true {
-            sessions[sessionId]?.status = .processing
-            sessions[sessionId]?.currentTool = nil
-            sessions[sessionId]?.toolDescription = nil
-        }
+        finishTool(sessions: &sessions, sessionId: sessionId)
     case "Stop":
         // Detect ESC/Ctrl+C interruption
         let stopReason = event.rawJSON["stop_reason"] as? String ?? ""
@@ -430,28 +397,7 @@ public func reduceEvent(
         }
         effects.append(.enqueueCompletion(sessionId: sessionId))
     case "SessionStart":
-        effects.append(.stopMonitor(sessionId: sessionId))
-        sessions[sessionId] = SessionSnapshot(startTime: Date())
-        // Re-apply metadata from this event (common extraction above wrote to the old session)
-        if let cwd = event.rawJSON["cwd"] as? String, !cwd.isEmpty { sessions[sessionId]?.cwd = cwd }
-        if let model = event.rawJSON["model"] as? String, !model.isEmpty { sessions[sessionId]?.model = model }
-        if let ppid = event.rawJSON["_ppid"] as? Int, ppid > 0 {
-            sessions[sessionId]?.cliPid = pid_t(ppid)
-        }
-        if let source = SessionSnapshot.normalizedSupportedSource(event.rawJSON["_source"] as? String) {
-            sessions[sessionId]?.source = source
-        }
-        if let app = event.rawJSON["_term_app"] as? String, !app.isEmpty { sessions[sessionId]?.termApp = app }
-        if let bundle = event.rawJSON["_term_bundle"] as? String, !bundle.isEmpty { sessions[sessionId]?.termBundleId = bundle }
-        if let ses = event.rawJSON["_iterm_session"] as? String, !ses.isEmpty { sessions[sessionId]?.itermSessionId = ses }
-        if let tty = event.rawJSON["_tty"] as? String, !tty.isEmpty { sessions[sessionId]?.ttyPath = tty }
-        if let kitty = event.rawJSON["_kitty_window"] as? String, !kitty.isEmpty { sessions[sessionId]?.kittyWindowId = kitty }
-        if let pane = event.rawJSON["_tmux_pane"] as? String, !pane.isEmpty { sessions[sessionId]?.tmuxPane = pane }
-        if let tmuxTty = event.rawJSON["_tmux_client_tty"] as? String, !tmuxTty.isEmpty { sessions[sessionId]?.tmuxClientTty = tmuxTty }
-        if let mode = event.rawJSON["permission_mode"] as? String { sessions[sessionId]?.permissionMode = mode }
-        if let roots = event.rawJSON["workspace_roots"] as? [String], let first = roots.first, !first.isEmpty {
-            sessions[sessionId]?.cwd = first
-        }
+        // Session reset and metadata extraction already handled above
         effects.append(.tryMonitorSession(sessionId: sessionId))
     case "SessionEnd":
         // Side effect: AppState handles pending permission deny before removal
@@ -493,6 +439,14 @@ public func reduceEvent(
     // is handled by AppState since it needs to check current activeSessionId
 
     return effects
+}
+
+private func finishTool(sessions: inout [String: SessionSnapshot], sessionId: String) {
+    if sessions[sessionId]?.status.canTransition(to: .processing) == true {
+        sessions[sessionId]?.status = .processing
+        sessions[sessionId]?.currentTool = nil
+        sessions[sessionId]?.toolDescription = nil
+    }
 }
 
 // MARK: - Private Helpers
@@ -578,28 +532,17 @@ private func handleSubagentEvent(
         sessions[sessionId]?.lastActivity = Date()
         return true
 
-    case "PostToolUse":
+    case "PostToolUse", "PostToolUseFailure":
+        let success = eventName == "PostToolUse"
         if let tool = sessions[sessionId]?.subagents[agentId]?.currentTool {
             let agentType = sessions[sessionId]?.subagents[agentId]?.agentType
             let desc = sessions[sessionId]?.subagents[agentId]?.toolDescription
-            sessions[sessionId]?.recordTool(tool, description: desc, success: true, agentType: agentType, maxHistory: maxHistory)
+            sessions[sessionId]?.recordTool(tool, description: desc, success: success, agentType: agentType, maxHistory: maxHistory)
         }
         sessions[sessionId]?.subagents[agentId]?.status = .processing
         sessions[sessionId]?.subagents[agentId]?.currentTool = nil
         sessions[sessionId]?.subagents[agentId]?.toolDescription = nil
         sessions[sessionId]?.subagents[agentId]?.lastActivity = Date()
-        sessions[sessionId]?.lastActivity = Date()
-        return true
-
-    case "PostToolUseFailure":
-        if let tool = sessions[sessionId]?.subagents[agentId]?.currentTool {
-            let agentType = sessions[sessionId]?.subagents[agentId]?.agentType
-            let desc = sessions[sessionId]?.subagents[agentId]?.toolDescription
-            sessions[sessionId]?.recordTool(tool, description: desc, success: false, agentType: agentType, maxHistory: maxHistory)
-        }
-        sessions[sessionId]?.subagents[agentId]?.status = .processing
-        sessions[sessionId]?.subagents[agentId]?.currentTool = nil
-        sessions[sessionId]?.subagents[agentId]?.toolDescription = nil
         sessions[sessionId]?.lastActivity = Date()
         return true
 
