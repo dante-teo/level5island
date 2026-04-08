@@ -57,6 +57,7 @@ AI Tool hook → level5island-bridge → Unix socket → HookServer
 - `Models.swift` — `HookEvent`, `AgentStatus`, `ToolHistoryEntry`, `ChatMessage`
 - `AppState.swift` — Observable main state, session lifecycle, effect execution
 - `ConfigInstaller.swift` — Auto-installs Claude Code hooks into `~/.claude/settings.json`
+- `DesignTokens.swift` — `Design` enum: colors, typography, spacing tokens for UI
 - `NotchPanelView.swift` — Main panel UI (compact + expanded modes)
 - `PanelWindowController.swift` — Window positioning, visibility, notch detection
 - `TerminalActivator.swift` — Jump-to-terminal: window focus + tab switching
@@ -65,6 +66,7 @@ AI Tool hook → level5island-bridge → Unix socket → HookServer
 ## Conventions
 
 - macOS 14.0+ (Sonoma), Swift 5.9+
+- **Design tokens**: All UI colors/fonts/spacing go through `Design` enum in `DesignTokens.swift` — no hardcoded `Color(red:green:blue:)` in views. Use `Design.toolColor()` for tool-specific colors, `Design.headline/body/caption()` for SF Pro, `Design.mono()` for SF Mono (code content only). Panel forces `.darkAqua` appearance so semantic colors (`.primary`, `.secondary`, `.tertiary`) always resolve to white-on-black.
 - Bilingual UI strings in `L10n.swift` (English + Chinese)
 - Logging via `os.log` with subsystem `com.level5island`
 - Bundle ID: `com.level5island` (see `Info.plist`)

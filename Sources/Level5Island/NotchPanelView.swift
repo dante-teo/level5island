@@ -1,15 +1,6 @@
 import SwiftUI
 import Level5IslandCore
 
-// MARK: - Phosphor Terminal Palette
-
-private enum Phosphor {
-    static let border        = Color.white.opacity(0.08)
-    static let borderHover   = Color.white.opacity(0.18)
-    static let warningAmber  = Color(red: 1.0, green: 0.7, blue: 0.28)
-    static let questionCyan  = Color(red: 0.4, green: 0.7, blue: 1.0)
-}
-
 private extension AnyTransition {
     static let cardReveal = AnyTransition.asymmetric(
         insertion: .opacity.combined(with: .offset(y: -8)),
@@ -112,11 +103,11 @@ struct NotchPanelView: View {
                 // Below-notch expanded content (staggered after panel shape)
                 if shouldShowExpanded && contentVisible {
                     LinearGradient(
-                        colors: [.clear, Phosphor.border, .clear],
+                        colors: [.clear, Design.border, .clear],
                         startPoint: .leading, endPoint: .trailing
                     )
                     .frame(height: 0.5)
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, Design.spacingLG)
 
                     switch appState.surface {
                     case .approvalCard:
@@ -310,28 +301,27 @@ struct NotchPanelView: View {
             if expanded {
                 AppLogoView(size: 36, showBackground: false)
                 if appState.sessions.count > 1 {
-                    HStack(spacing: 1) {
-                        ForEach([("all", "ALL"), ("status", "STA"), ("cli", "CLI")], id: \.0) { tag, label in
+                    HStack(spacing: 2) {
+                        ForEach([("all", "All"), ("status", "Status"), ("cli", "CLI")], id: \.0) { tag, label in
                             let selected = groupingMode == tag
                             Button {
                                 withAnimation(.easeInOut(duration: 0.15)) { groupingMode = tag }
                             } label: {
-                                PixelText(
-                                    text: label,
-                                    color: selected ? Color(red: 0.3, green: 0.85, blue: 0.4) : .white.opacity(0.3),
-                                    pixelSize: 1.3
-                                )
-                                .padding(.horizontal, 5)
-                                .padding(.vertical, 4)
-                                .background(
-                                    Rectangle().fill(selected ? .white.opacity(0.1) : .clear)
-                                )
+                                Text(label)
+                                    .font(Design.caption(10, weight: selected ? .semibold : .regular))
+                                    .foregroundStyle(selected ? Design.statusActive : .secondary)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(
+                                        Capsule().fill(selected ? .white.opacity(0.1) : .clear)
+                                    )
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .background(Rectangle().fill(.white.opacity(0.05)))
-                    .overlay(Rectangle().stroke(.white.opacity(0.1), lineWidth: 1))
+                    .padding(.horizontal, 2)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(.white.opacity(0.05)))
                 }
             } else {
                 MascotView(source: displaySource, status: displayStatus, size: mascotSize)
@@ -343,7 +333,7 @@ struct NotchPanelView: View {
                 if hasNotch, showToolStatus, let tool = shownTool {
                     Text(tool)
                         .font(.system(size: 10, weight: .medium, design: .monospaced))
-                        .foregroundStyle(toolStatusColor(tool))
+                        .foregroundStyle(Design.toolColor(tool))
                         .lineLimit(1)
                         .fixedSize()
                         .transition(.opacity)
@@ -399,7 +389,7 @@ private struct CompactRightWing: View {
                 NotchIconButton(icon: "gearshape", tooltip: l10n["settings"]) {
                     SettingsWindowController.shared.show()
                 }
-                NotchIconButton(icon: "power", tint: Color(red: 1.0, green: 0.4, blue: 0.4), tooltip: l10n["quit"]) {
+                NotchIconButton(icon: "power", tint: Design.statusError, tooltip: l10n["quit"]) {
                     NSApplication.shared.terminate(nil)
                 }
             } else {
@@ -407,7 +397,7 @@ private struct CompactRightWing: View {
                 if appState.status == .waitingApproval || appState.status == .waitingQuestion {
                     Image(systemName: "bell.fill")
                         .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(Color(red: 1.0, green: 0.7, blue: 0.28))
+                        .foregroundStyle(Design.statusWarning)
                         .symbolEffect(.pulse, options: .repeating)
                 }
 
@@ -418,14 +408,14 @@ private struct CompactRightWing: View {
                         let total = appState.totalSessionCount
                         if active > 0 {
                             Text("\(active)")
-                                .foregroundStyle(Color(red: 0.4, green: 1.0, blue: 0.5))
+                                .foregroundStyle(Design.statusActive)
                             Text("/")
-                                .foregroundStyle(.white.opacity(0.4))
+                                .foregroundStyle(.tertiary)
                         }
                         Text("\(total)")
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(.primary)
                     }
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    .font(Design.headline(12)).monospacedDigit()
                 } else {
                     // Simple mode: original session count only
                     HStack(spacing: 1) {
@@ -433,32 +423,18 @@ private struct CompactRightWing: View {
                         let total = appState.totalSessionCount
                         if active > 0 {
                             Text("\(active)")
-                                .foregroundStyle(Color(red: 0.4, green: 1.0, blue: 0.5))
+                                .foregroundStyle(Design.statusActive)
                             Text("/")
-                                .foregroundStyle(.white.opacity(0.4))
+                                .foregroundStyle(.tertiary)
                         }
                         Text("\(total)")
-                            .foregroundStyle(.white.opacity(0.9))
+                            .foregroundStyle(.primary)
                     }
-                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    .font(Design.headline(13, weight: .bold)).monospacedDigit()
                 }
             }
         }
         .padding(.trailing, 6)
-    }
-}
-
-// MARK: - Tool Status Helpers
-
-/// Accent color for each tool category — shared between notch and non-notch views
-private func toolStatusColor(_ tool: String) -> Color {
-    switch tool.lowercased() {
-    case "bash": return Color(red: 0.4, green: 1.0, blue: 0.5)
-    case "edit", "write": return Color(red: 0.5, green: 0.7, blue: 1.0)
-    case "read": return Color(red: 0.9, green: 0.8, blue: 0.4)
-    case "grep", "glob": return Color(red: 0.8, green: 0.6, blue: 1.0)
-    case "agent": return Color(red: 1.0, green: 0.6, blue: 0.4)
-    default: return .white.opacity(0.7)
     }
 }
 
@@ -506,18 +482,18 @@ private func toolStatusColor(_ tool: String) -> Color {
             // Project name — only shown when there's tool activity
             if hasActivity, let project = projectName {
                 Text(project)
-                    .foregroundStyle(.white.opacity(0.8))
+                    .foregroundStyle(.secondary)
                     .id("center-project-\(displaySessionId ?? "")")
                     .transition(.opacity)
             }
 
             // Tool status or thinking indicator
             if let tool = shownTool {
-                TypingIndicator(fontSize: 11, label: tool, bright: true, color: toolStatusColor(tool))
+                TypingIndicator(fontSize: 11, label: tool, bright: true, color: Design.toolColor(tool))
                     .id("tool-\(tool)-\(appState.rotatingSessionId ?? "")")
                 if let desc = shownDesc {
                     Text(shortDesc(desc))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(.secondary)
                         .truncationMode(.tail)
                 }
             } else if displayStatus == .processing {
@@ -525,7 +501,7 @@ private func toolStatusColor(_ tool: String) -> Color {
                     .id("thinking-\(appState.rotatingSessionId ?? "")")
             }
         }
-        .font(.system(size: 11, weight: .medium, design: .monospaced))
+        .font(Design.caption(11))
         .lineLimit(1)
         .padding(.leading, 6)
         .animation(.easeInOut(duration: 0.25), value: shownTool)
@@ -572,18 +548,12 @@ private struct NotchIconButton: View {
         Button(action: action) {
             Image(systemName: icon)
                 .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(tint.opacity(hovering ? 1.0 : 0.85))
-                .frame(width: 22, height: 22)
+                .foregroundStyle(tint.opacity(hovering ? 1.0 : 0.7))
+                .frame(width: 24, height: 24)
                 .background(
                     Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [tint.opacity(hovering ? 0.25 : 0.08), tint.opacity(hovering ? 0.12 : 0.04)],
-                                center: .center, startRadius: 0, endRadius: 11
-                            )
-                        )
+                        .fill(tint.opacity(hovering ? 0.15 : 0))
                 )
-                .scaleEffect(hovering ? 1.1 : 1.0)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -619,8 +589,8 @@ private struct IdleIndicatorBar: View {
             if hovered {
                 HStack(spacing: 8) {
                     Text("0")
-                        .font(.system(size: 13, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.4))
+                        .font(Design.headline(13, weight: .bold)).monospacedDigit()
+                        .foregroundStyle(.tertiary)
 
                     HStack(spacing: 4) {
                         NotchIconButton(icon: soundEnabled ? "speaker.wave.2" : "speaker.slash", tooltip: soundEnabled ? l10n["mute"] : l10n["enable_sound_tooltip"]) {
@@ -629,7 +599,7 @@ private struct IdleIndicatorBar: View {
                         NotchIconButton(icon: "gearshape", tooltip: l10n["settings"]) {
                             SettingsWindowController.shared.show()
                         }
-                        NotchIconButton(icon: "power", tint: Color(red: 1.0, green: 0.4, blue: 0.4), tooltip: l10n["quit"]) {
+                        NotchIconButton(icon: "power", tint: Design.statusError, tooltip: l10n["quit"]) {
                             NSApplication.shared.terminate(nil)
                         }
                     }
@@ -671,33 +641,33 @@ private struct ApprovalBar: View {
     private var queueBadge: some View {
         if queueTotal > 1 {
             Text("\(queuePosition)/\(queueTotal)")
-                .font(.system(size: 9, weight: .bold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.5))
+                .font(Design.caption(9, weight: .bold)).monospacedDigit()
+                .foregroundStyle(.secondary)
                 .padding(.horizontal, 4)
                 .padding(.vertical, 1)
-                .background(Color.white.opacity(0.1))
+                .background(.quaternary)
                 .clipShape(RoundedRectangle(cornerRadius: 3))
         }
     }
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Design.spacingSM) {
                 HStack(spacing: 6) {
-                    Text("!")
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color(red: 1.0, green: 0.7, blue: 0.28))
+                    Image(systemName: "exclamationmark.shield.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Design.statusWarning)
                     Text(tool)
-                        .font(.system(size: 11, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color(red: 1.0, green: 0.7, blue: 0.28))
+                        .font(Design.mono(11, weight: .bold))
+                        .foregroundStyle(Design.statusWarning)
                     if let server = serverName {
                         Text("(\(server))")
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundStyle(Color(red: 0.6, green: 0.7, blue: 0.9))
+                            .font(Design.mono(9))
+                            .foregroundStyle(.blue)
                     }
                     if let name = fileName {
                         Text(name)
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .font(Design.caption(10))
+                            .foregroundStyle(.secondary)
                     }
                     queueBadge
                     Spacer()
@@ -709,19 +679,19 @@ private struct ApprovalBar: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 6)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white.opacity(0.04))
+                        .background(.quaternary)
                 }
 
                 HStack(spacing: 6) {
-                    PixelButton(label: L10n.shared["deny"], fg: .white.opacity(0.95), bg: Color(red: 0.45, green: 0.12, blue: 0.12), border: Color(red: 0.7, green: 0.25, blue: 0.25), action: onDeny)
-                    PixelButton(label: L10n.shared["allow_once"], fg: .white.opacity(0.95), bg: Color(red: 0.16, green: 0.38, blue: 0.18), border: Color(red: 0.28, green: 0.62, blue: 0.32), action: onAllow)
-                    PixelButton(label: L10n.shared["always"], fg: .white.opacity(0.95), bg: Color(red: 0.14, green: 0.28, blue: 0.52), border: Color(red: 0.28, green: 0.48, blue: 0.82), action: onAlwaysAllow)
+                    PixelButton(label: L10n.shared["deny"], fg: .white, bg: Design.statusError.opacity(0.6), border: Design.statusError.opacity(0.4), action: onDeny)
+                    PixelButton(label: L10n.shared["allow_once"], fg: .white, bg: Design.statusActive.opacity(0.5), border: Design.statusActive.opacity(0.4), action: onAllow)
+                    PixelButton(label: L10n.shared["always"], fg: .white, bg: Design.statusQuestion.opacity(0.5), border: Design.statusQuestion.opacity(0.4), action: onAlwaysAllow)
                 }
                 .padding(.horizontal, 14)
         }
         .padding(.vertical, 10)
         .overlay(alignment: .top) {
-            Phosphor.warningAmber.opacity(0.35)
+            Design.statusWarning.opacity(0.35)
                 .frame(height: 1)
                 .blur(radius: 2)
         }
@@ -736,11 +706,11 @@ private struct ApprovalBar: View {
                 if let cmd = toolInput?["command"] as? String {
                     HStack(alignment: .top, spacing: 4) {
                         Text("$")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(red: 0.3, green: 0.85, blue: 0.4))
+                            .font(Design.mono(10, weight: .bold))
+                            .foregroundStyle(Design.statusActive)
                         Text(cmd)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.85))
+                            .font(Design.mono(10))
+                            .foregroundStyle(.primary.opacity(0.85))
                             .lineLimit(3)
                     }
                 }
@@ -751,30 +721,30 @@ private struct ApprovalBar: View {
             VStack(alignment: .leading, spacing: 3) {
                 if let fp = filePath {
                     Text(fp)
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .font(Design.mono(9))
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
                         .truncationMode(.head)
                 }
                 if let old = toolInput?["old_string"] as? String {
                     HStack(alignment: .top, spacing: 4) {
                         Text("−")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4))
+                            .font(Design.mono(10, weight: .bold))
+                            .foregroundStyle(Design.statusError)
                         Text(old.prefix(120))
-                            .font(.system(size: 9.5, design: .monospaced))
-                            .foregroundStyle(Color(red: 1.0, green: 0.4, blue: 0.4).opacity(0.7))
+                            .font(Design.mono(9.5))
+                            .foregroundStyle(Design.statusError.opacity(0.7))
                             .lineLimit(2)
                     }
                 }
                 if let new = toolInput?["new_string"] as? String {
                     HStack(alignment: .top, spacing: 4) {
                         Text("+")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(red: 0.3, green: 0.85, blue: 0.4))
+                            .font(Design.mono(10, weight: .bold))
+                            .foregroundStyle(Design.statusActive)
                         Text(new.prefix(120))
-                            .font(.system(size: 9.5, design: .monospaced))
-                            .foregroundStyle(Color(red: 0.3, green: 0.85, blue: 0.4).opacity(0.7))
+                            .font(Design.mono(9.5))
+                            .foregroundStyle(Design.statusActive.opacity(0.7))
                             .lineLimit(2)
                     }
                 }
@@ -785,15 +755,15 @@ private struct ApprovalBar: View {
             VStack(alignment: .leading, spacing: 3) {
                 if let fp = filePath {
                     Text(fp)
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .font(Design.mono(9))
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
                         .truncationMode(.head)
                 }
                 if let content = toolInput?["content"] as? String {
                     Text(content.prefix(200))
-                        .font(.system(size: 9.5, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.6))
+                        .font(Design.mono(9.5))
+                        .foregroundStyle(.secondary)
                         .lineLimit(4)
                 }
             }
@@ -803,16 +773,16 @@ private struct ApprovalBar: View {
             VStack(alignment: .leading, spacing: 2) {
                 if let fp = filePath {
                     Text(fp)
-                        .font(.system(size: 9.5, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .font(Design.mono(9.5))
+                        .foregroundStyle(.secondary)
                         .lineLimit(1)
                         .truncationMode(.head)
                 }
                 if let offset = toolInput?["offset"] as? Int,
                    let limit = toolInput?["limit"] as? Int {
                     Text("\(L10n.shared["lines"]) \(offset + 1)–\(offset + limit)")
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.4))
+                        .font(Design.mono(9))
+                        .foregroundStyle(.tertiary)
                 }
             }
 
@@ -822,18 +792,18 @@ private struct ApprovalBar: View {
                 if let pattern = toolInput?["pattern"] as? String {
                     HStack(alignment: .top, spacing: 4) {
                         Text("/")
-                            .font(.system(size: 10, weight: .bold, design: .monospaced))
-                            .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.9))
+                            .font(Design.mono(10, weight: .bold))
+                            .foregroundStyle(.purple)
                         Text(pattern)
-                            .font(.system(size: 10, design: .monospaced))
-                            .foregroundStyle(Color(red: 0.9, green: 0.6, blue: 0.9).opacity(0.8))
+                            .font(Design.mono(10))
+                            .foregroundStyle(.purple.opacity(0.8))
                             .lineLimit(2)
                     }
                 }
                 if let path = toolInput?["path"] as? String {
                     Text(path)
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .font(Design.mono(9))
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
                         .truncationMode(.head)
                 }
@@ -844,14 +814,14 @@ private struct ApprovalBar: View {
             VStack(alignment: .leading, spacing: 2) {
                 if let pattern = toolInput?["pattern"] as? String {
                     Text(pattern)
-                        .font(.system(size: 10, design: .monospaced))
-                        .foregroundStyle(Color(red: 0.6, green: 0.8, blue: 1.0))
+                        .font(Design.mono(10))
+                        .foregroundStyle(.blue)
                         .lineLimit(2)
                 }
                 if let path = toolInput?["path"] as? String {
                     Text(path)
-                        .font(.system(size: 9, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .font(Design.mono(9))
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
                         .truncationMode(.head)
                 }
@@ -865,11 +835,11 @@ private struct ApprovalBar: View {
                         let val = input[key].map { "\($0)" } ?? ""
                         HStack(alignment: .top, spacing: 4) {
                             Text(key)
-                                .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                                .foregroundStyle(Color(red: 0.6, green: 0.7, blue: 0.9))
+                                .font(Design.mono(9, weight: .semibold))
+                                .foregroundStyle(.blue)
                             Text(String(val.prefix(100)))
-                                .font(.system(size: 9.5, design: .monospaced))
-                                .foregroundStyle(.white.opacity(0.6))
+                                .font(Design.mono(9.5))
+                                .foregroundStyle(.secondary)
                                 .lineLimit(2)
                         }
                     }
@@ -896,23 +866,23 @@ private struct QuestionBar: View {
     @FocusState private var isFocused: Bool
     @State private var selectedIndex: Int? = nil
 
-    private let cyan = Color(red: 0.4, green: 0.7, blue: 1.0)
+    private let accent = Design.statusQuestion
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: Design.spacingSM) {
             // Session context
             if sessionSource != nil || sessionContext != nil {
                 HStack(spacing: 5) {
                     if sessionSource != nil {
-                        ClaudeSparkIcon(size: 12)
+                        ClaudeLogo(size: 12)
                     }
                     if let cwd = sessionContext {
                         Image(systemName: "folder.fill")
                             .font(.system(size: 8))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .foregroundStyle(.tertiary)
                         Text((cwd as NSString).lastPathComponent)
-                            .font(.system(size: 9, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.6))
+                            .font(Design.caption(9))
+                            .foregroundStyle(.secondary)
                     }
                     Spacer()
                 }
@@ -921,20 +891,20 @@ private struct QuestionBar: View {
 
             // Header
             HStack(spacing: 6) {
-                Text("?")
-                    .font(.system(size: 11, weight: .bold, design: .monospaced))
-                    .foregroundStyle(cyan)
+                Image(systemName: "questionmark.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundStyle(accent)
                 Text(question)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.white.opacity(0.9))
+                    .font(Design.body(11, weight: .medium))
+                    .foregroundStyle(.primary)
                     .lineLimit(3)
                 if queueTotal > 1 {
                     Text("\(queuePosition)/\(queueTotal)")
-                        .font(.system(size: 9, weight: .bold, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .font(Design.caption(9, weight: .bold)).monospacedDigit()
+                        .foregroundStyle(.secondary)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
-                        .background(Color.white.opacity(0.1))
+                        .background(.quaternary)
                         .clipShape(RoundedRectangle(cornerRadius: 3))
                 }
                 Spacer()
@@ -946,7 +916,7 @@ private struct QuestionBar: View {
                 VStack(spacing: 4) {
                     ForEach(Array(options.enumerated()), id: \.offset) { idx, option in
                         let desc = descriptions?.indices.contains(idx) == true ? descriptions?[idx] : nil
-                        OptionRow(index: idx + 1, label: option, description: desc, isSelected: selectedIndex == idx, accent: cyan) {
+                        OptionRow(index: idx + 1, label: option, description: desc, isSelected: selectedIndex == idx, accent: accent) {
                             selectedIndex = idx
                             onAnswer(option)
                         }
@@ -956,13 +926,10 @@ private struct QuestionBar: View {
             } else {
                 // Text input
                 HStack(spacing: 6) {
-                    Text(">")
-                        .font(.system(size: 10, weight: .bold, design: .monospaced))
-                        .foregroundStyle(Color(red: 0.3, green: 0.85, blue: 0.4))
                     TextField(L10n.shared["type_answer"], text: $textInput)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 10.5, design: .monospaced))
-                        .foregroundStyle(.white)
+                        .font(Design.mono(10.5))
+                        .foregroundStyle(.primary)
                         .focused($isFocused)
                         .onSubmit {
                             if !textInput.isEmpty { onAnswer(textInput) }
@@ -970,11 +937,11 @@ private struct QuestionBar: View {
                 }
                 .padding(.horizontal, 10)
                 .padding(.vertical, 6)
-                .background(Color.white.opacity(0.05))
-                .cornerRadius(4)
+                .background(.quaternary)
+                .cornerRadius(6)
                 .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(Color.white.opacity(0.1), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 6)
+                        .strokeBorder(.white.opacity(0.1), lineWidth: 0.5)
                 )
                 .padding(.horizontal, 14)
             }
@@ -983,17 +950,17 @@ private struct QuestionBar: View {
             HStack(spacing: 6) {
                 PixelButton(
                     label: L10n.shared["skip"],
-                    fg: .white.opacity(0.6),
-                    bg: Color.white.opacity(0.06),
-                    border: Color.white.opacity(0.12),
+                    fg: .secondary,
+                    bg: .white.opacity(0.06),
+                    border: .white.opacity(0.12),
                     action: onSkip
                 )
                 if options == nil || options?.isEmpty == true {
                     PixelButton(
                         label: L10n.shared["submit"],
-                        fg: .white.opacity(0.95),
-                        bg: Color(red: 0.16, green: 0.38, blue: 0.18),
-                        border: Color(red: 0.28, green: 0.62, blue: 0.32),
+                        fg: .white,
+                        bg: Design.statusActive.opacity(0.5),
+                        border: Design.statusActive.opacity(0.4),
                         action: { if !textInput.isEmpty { onAnswer(textInput) } }
                     )
                 }
@@ -1002,7 +969,7 @@ private struct QuestionBar: View {
         }
         .padding(.vertical, 10)
         .overlay(alignment: .top) {
-            Phosphor.questionCyan.opacity(0.35)
+            Design.statusQuestion.opacity(0.35)
                 .frame(height: 1)
                 .blur(radius: 2)
         }
@@ -1023,39 +990,42 @@ private struct OptionRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
-                // Selector arrow
-                Text(hovering ? "▸" : " ")
-                    .font(.system(size: 9, weight: .bold, design: .monospaced))
-                    .foregroundStyle(accent)
-                    .frame(width: 10)
+            HStack(spacing: Design.spacingSM) {
                 // Number
-                Text("\(index).")
-                    .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                Text("\(index)")
+                    .font(Design.caption(10, weight: .semibold))
                     .foregroundStyle(accent.opacity(hovering ? 1 : 0.6))
+                    .frame(width: 16, height: 16)
+                    .background(accent.opacity(hovering ? 0.15 : 0.08))
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
                 // Label + Description
                 VStack(alignment: .leading, spacing: 2) {
                     Text(label)
-                        .font(.system(size: 10.5, weight: hovering ? .semibold : .regular, design: .monospaced))
-                        .foregroundStyle(.white.opacity(hovering ? 1 : 0.75))
+                        .font(Design.body(10.5, weight: hovering ? .semibold : .regular))
+                        .foregroundStyle(hovering ? .primary : .secondary)
                     if let description, !description.isEmpty {
                         Text(description)
-                            .font(.system(size: 9, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.45))
+                            .font(Design.caption(9))
+                            .foregroundStyle(.tertiary)
                             .lineLimit(2)
                     }
                 }
                 Spacer()
+                if hovering {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(accent.opacity(0.6))
+                }
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 7)
             .background(
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(hovering ? Color.white.opacity(0.08) : Color.white.opacity(0.03))
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(hovering ? .white.opacity(0.08) : .white.opacity(0.03))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .strokeBorder(hovering ? accent.opacity(0.4) : Color.clear, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8)
+                    .strokeBorder(hovering ? accent.opacity(0.3) : .clear, lineWidth: 0.5)
             )
         }
         .buttonStyle(.plain)
@@ -1074,12 +1044,12 @@ private struct PixelButton: View {
     var body: some View {
         Button(action: action) {
             Text(label)
-                .font(.system(size: 10, weight: .semibold, design: .monospaced))
+                .font(Design.caption(10, weight: .semibold))
                 .foregroundStyle(fg)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 7)
                 .background(
-                    RoundedRectangle(cornerRadius: 4)
+                    RoundedRectangle(cornerRadius: 8)
                         .fill(
                             LinearGradient(
                                 colors: [
@@ -1091,10 +1061,9 @@ private struct PixelButton: View {
                         )
                 )
                 .overlay(
-                    RoundedRectangle(cornerRadius: 4)
-                        .strokeBorder(hovering ? border : border.opacity(0.4), lineWidth: 1)
+                    RoundedRectangle(cornerRadius: 8)
+                        .strokeBorder(hovering ? border : border.opacity(0.4), lineWidth: 0.5)
                 )
-                .scaleEffect(hovering ? 1.02 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { h in withAnimation(NotchAnimation.micro) { hovering = h } }
@@ -1174,11 +1143,11 @@ private struct PixelButton: View {
                 if !group.header.isEmpty {
                     HStack(spacing: 6) {
                         if group.source != nil {
-                            ClaudeSparkIcon(size: 14)
+                            ClaudeLogo(size: 14)
                         }
                         Text(group.header)
-                            .font(.system(size: 11, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.5))
+                            .font(Design.caption(11))
+                            .foregroundStyle(.secondary)
                         Spacer()
                     }
                     .padding(.horizontal, 12)
@@ -1320,7 +1289,7 @@ private struct ProjectNameLink: View {
 
     var body: some View {
         Text(name)
-            .font(.system(size: fontSize, weight: .bold, design: .monospaced))
+            .font(Design.headline(fontSize, weight: .bold))
             .foregroundStyle(color)
             .lineLimit(1)
             .truncationMode(.tail)
@@ -1354,14 +1323,14 @@ private struct SessionsExpandLink: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                Rectangle().fill(Phosphor.borderHover).frame(height: 1)
+                Rectangle().fill(Design.borderHover).frame(height: 1)
                 Text("\(count) \(L10n.shared["n_sessions"])")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.white.opacity(hovering ? 0.7 : 0.45))
+                    .font(Design.caption(11))
+                    .foregroundStyle(hovering ? .secondary : .tertiary)
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(.white.opacity(hovering ? 0.5 : 0.3))
-                Rectangle().fill(Phosphor.borderHover).frame(height: 1)
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(hovering ? .tertiary : .quaternary)
+                Rectangle().fill(Design.borderHover).frame(height: 1)
             }
             .padding(.vertical, 8)
             .padding(.horizontal, 12)
@@ -1393,12 +1362,12 @@ private struct SessionCard: View {
     private var aiLineLimit: Int? { aiMessageLines > 0 ? aiMessageLines : nil }
     private var statusNameColor: Color {
         if session.status == .idle && session.interrupted {
-            return Color(red: 1.0, green: 0.45, blue: 0.35)
+            return Design.statusError
         }
         switch session.status {
-        case .processing, .running:              return Color(red: 0.3, green: 0.85, blue: 0.4)
-        case .waitingApproval, .waitingQuestion:  return Color(red: 1.0, green: 0.6, blue: 0.2)
-        case .idle:                               return .white
+        case .processing, .running:              return Design.statusActive
+        case .waitingApproval, .waitingQuestion:  return Design.statusWarning
+        case .idle:                               return .primary
         }
     }
 
@@ -1448,7 +1417,7 @@ private struct SessionCard: View {
 
                     HStack(spacing: 4) {
                         if session.interrupted {
-                            SessionTag("INT", color: Color(red: 1.0, green: 0.6, blue: 0.2))
+                            SessionTag("INT", color: Design.statusWarning)
                         }
                         SessionTag(timeAgo(session.startTime))
                         TerminalJumpButton(session: session, sessionId: sessionId)
@@ -1459,8 +1428,8 @@ private struct SessionCard: View {
                 if let prompt = session.lastUserPrompt,
                    session.recentMessages.isEmpty {
                     Text(prompt)
-                        .font(.system(size: fontSize, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .font(Design.body(fontSize))
+                        .foregroundStyle(.tertiary)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
@@ -1475,23 +1444,23 @@ private struct SessionCard: View {
                     ForEach(visibleMessages) { msg in
                         if msg.isUser {
                             HStack(alignment: .top, spacing: 4) {
-                                Text(">")
-                                    .font(.system(size: fontSize, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(Color(red: 0.3, green: 0.85, blue: 0.4))
+                                Image(systemName: "person.fill")
+                                    .font(.system(size: fontSize - 1))
+                                    .foregroundStyle(Design.statusActive)
+                                    .frame(width: fontSize + 2)
                                 Text(renderUserText(msg.text))
-                                    .font(.system(size: fontSize, weight: .medium, design: .monospaced))
-                                    .foregroundStyle(.white.opacity(0.9))
+                                    .font(Design.body(fontSize, weight: .medium))
+                                    .foregroundStyle(.primary)
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                             }
                         } else {
                             HStack(alignment: .top, spacing: 4) {
-                                Text("$")
-                                    .font(.system(size: fontSize, weight: .bold, design: .monospaced))
-                                    .foregroundStyle(Color(red: 0.85, green: 0.47, blue: 0.34))
+                                ClaudeLogo(size: fontSize + 1)
+                                    .frame(width: fontSize + 2)
                                 Text(renderMarkdown(compactText(stripDirectives(msg.text))))
-                                    .font(.system(size: fontSize, design: .monospaced))
-                                    .foregroundStyle(.white.opacity(0.85))
+                                    .font(Design.body(fontSize))
+                                    .foregroundStyle(.primary.opacity(0.85))
                                     .lineLimit(aiLineLimit)
                                     .truncationMode(.tail)
                             }
@@ -1501,13 +1470,12 @@ private struct SessionCard: View {
                     // Working indicator: show what AI is doing right now
                     if session.status != .idle {
                         HStack(spacing: 4) {
-                            Text("$")
-                                .font(.system(size: fontSize, weight: .bold, design: .monospaced))
-                                .foregroundStyle(Color(red: 0.85, green: 0.47, blue: 0.34))
+                            ClaudeLogo(size: fontSize + 1)
+                                .frame(width: fontSize + 2)
                             if let tool = session.currentTool {
                                 Text(session.toolDescription ?? tool)
-                                    .font(.system(size: fontSize, design: .monospaced))
-                                    .foregroundStyle(.white.opacity(0.75))
+                                    .font(Design.body(fontSize))
+                                    .foregroundStyle(.secondary)
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                             } else {
@@ -1520,24 +1488,24 @@ private struct SessionCard: View {
             }
             } // end Column 2 VStack
         } // end HStack
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, Design.spacingLG)
+        .padding(.vertical, Design.spacingMD)
         .background(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: Design.cardRadius)
                 .fill(
                     LinearGradient(
                         colors: [
-                            Color.white.opacity(hovering ? 0.12 : 0.06),
-                            Color.white.opacity(hovering ? 0.08 : 0.03)
+                            .white.opacity(hovering ? 0.10 : 0.05),
+                            .white.opacity(hovering ? 0.06 : 0.02)
                         ],
                         startPoint: .top, endPoint: .bottom
                     )
                 )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
+            RoundedRectangle(cornerRadius: Design.cardRadius)
                 .strokeBorder(
-                    hovering ? statusNameColor.opacity(0.25) : Phosphor.border,
+                    hovering ? statusNameColor.opacity(0.25) : Design.border,
                     lineWidth: 0.5
                 )
         )
@@ -1583,9 +1551,9 @@ private struct SessionCard: View {
 
 // MARK: - Claude Logo (official sunburst from simple-icons, viewBox 0 0 24 24)
 
-private struct ClaudeLogo: View {
+struct ClaudeLogo: View {
     var size: CGFloat = 22
-    private static let color = Color(red: 0.85, green: 0.47, blue: 0.34) // #D97757
+    private static let color = Design.terracotta
 
     // Official Claude logo SVG path (source: simple-icons)
     fileprivate static let svgPath = "m4.7144 15.9555 4.7174-2.6471.079-.2307-.079-.1275h-.2307l-.7893-.0486-2.6956-.0729-2.3375-.0971-2.2646-.1214-.5707-.1215-.5343-.7042.0546-.3522.4797-.3218.686.0608 1.5179.1032 2.2767.1578 1.6514.0972 2.4468.255h.3886l.0546-.1579-.1336-.0971-.1032-.0972L6.973 9.8356l-2.55-1.6879-1.3356-.9714-.7225-.4918-.3643-.4614-.1578-1.0078.6557-.7225.8803.0607.2246.0607.8925.686 1.9064 1.4754 2.4893 1.8336.3643.3035.1457-.1032.0182-.0728-.164-.2733-1.3539-2.4467-1.445-2.4893-.6435-1.032-.17-.6194c-.0607-.255-.1032-.4674-.1032-.7285L6.287.1335 6.6997 0l.9957.1336.419.3642.6192 1.4147 1.0018 2.2282 1.5543 3.0296.4553.8985.2429.8318.091.255h.1579v-.1457l.1275-1.706.2368-2.0947.2307-2.6957.0789-.7589.3764-.9107.7468-.4918.5828.2793.4797.686-.0668.4433-.2853 1.8517-.5586 2.9021-.3643 1.9429h.2125l.2429-.2429.9835-1.3053 1.6514-2.0643.7286-.8196.85-.9046.5464-.4311h1.0321l.759 1.1293-.34 1.1657-1.0625 1.3478-.8804 1.1414-1.2628 1.7-.7893 1.36.0729.1093.1882-.0183 2.8535-.607 1.5421-.2794 1.8396-.3157.8318.3886.091.3946-.3278.8075-1.967.4857-2.3072.4614-3.4364.8136-.0425.0304.0486.0607 1.5482.1457.6618.0364h1.621l3.0175.2247.7892.522.4736.6376-.079.4857-1.2142.6193-1.6393-.3886-3.825-.9107-1.3113-.3279h-.1822v.1093l1.0929 1.0686 2.0035 1.8092 2.5075 2.3314.1275.5768-.3218.4554-.34-.0486-2.2039-1.6575-.85-.7468-1.9246-1.621h-.1275v.17l.4432.6496 2.3436 3.5214.1214 1.0807-.17.3521-.6071.2125-.6679-.1214-1.3721-1.9246L14.38 17.959l-1.1414-1.9428-.1397.079-.674 7.2552-.3156.3703-.7286.2793-.6071-.4614-.3218-.7468.3218-1.4753.3886-1.9246.3157-1.53.2853-1.9004.17-.6314-.0121-.0425-.1397.0182-1.4328 1.9672-2.1796 2.9446-1.7243 1.8456-.4128.164-.7164-.3704.0667-.6618.4008-.5889 2.386-3.0357 1.4389-1.882.929-1.0868-.0062-.1579h-.0546l-6.3385 4.1164-1.1293.1457-.4857-.4554.0608-.7467.2307-.2429 1.9064-1.3114Z"
@@ -1769,7 +1737,7 @@ private struct TerminalJumpButton: View {
     let sessionId: String
     @State private var hovering = false
 
-    private let green = Color(red: 0.3, green: 0.85, blue: 0.4)
+    private let green = Design.statusActive
 
     private static var termIconCache: [String: NSImage] = [:]
 
@@ -1796,7 +1764,7 @@ private struct TerminalJumpButton: View {
                 }
                 if let term = session.terminalName {
                     Text(term)
-                        .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+                        .font(Design.caption(9.5))
                         .foregroundStyle(green)
                 }
                 Image(systemName: "arrow.right")
@@ -1819,134 +1787,12 @@ private struct TerminalJumpButton: View {
     }
 }
 
-// MARK: - Pixel Text (5×7 dot matrix style)
-
-private struct PixelText: View {
-    let text: String
-    let color: Color
-    var pixelSize: CGFloat = 2
-
-    private static let W = 5  // glyph width
-    private static let H = 7  // glyph height
-
-    // 5×7 bitmaps — each row is 5 bits, 7 rows per glyph
-    private static let glyphs: [Character: [UInt8]] = [
-        "0": [0,1,1,1,0, 1,0,0,1,1, 1,0,1,0,1, 1,1,0,0,1, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "1": [0,0,1,0,0, 0,1,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "2": [0,1,1,1,0, 1,0,0,0,1, 0,0,1,1,0, 0,1,0,0,0, 1,1,1,1,1, 0,0,0,0,0, 0,0,0,0,0],
-        "3": [0,1,1,1,0, 1,0,0,0,1, 0,0,1,1,0, 1,0,0,0,1, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "4": [0,0,0,1,0, 0,0,1,1,0, 0,1,0,1,0, 1,1,1,1,1, 0,0,0,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "5": [1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,0, 0,0,0,0,1, 1,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "6": [0,1,1,1,0, 1,0,0,0,0, 1,1,1,1,0, 1,0,0,0,1, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "7": [1,1,1,1,1, 0,0,0,0,1, 0,0,0,1,0, 0,0,1,0,0, 0,0,1,0,0, 0,0,0,0,0, 0,0,0,0,0],
-        "8": [0,1,1,1,0, 1,0,0,0,1, 0,1,1,1,0, 1,0,0,0,1, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "9": [0,1,1,1,0, 1,0,0,0,1, 0,1,1,1,1, 0,0,0,0,1, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "A": [0,0,1,0,0, 0,1,0,1,0, 1,0,0,0,1, 1,1,1,1,1, 1,0,0,0,1, 0,0,0,0,0, 0,0,0,0,0],
-        "B": [1,1,1,1,0, 1,0,0,0,1, 1,1,1,1,0, 1,0,0,0,1, 1,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "C": [0,1,1,1,0, 1,0,0,0,1, 1,0,0,0,0, 1,0,0,0,1, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "D": [1,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 1,0,0,0,1, 1,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "E": [1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,0, 1,0,0,0,0, 1,1,1,1,1, 0,0,0,0,0, 0,0,0,0,0],
-        "F": [1,1,1,1,1, 1,0,0,0,0, 1,1,1,1,0, 1,0,0,0,0, 1,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0],
-        "G": [0,1,1,1,0, 1,0,0,0,0, 1,0,0,1,1, 1,0,0,0,1, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "H": [1,0,0,0,1, 1,0,0,0,1, 1,1,1,1,1, 1,0,0,0,1, 1,0,0,0,1, 0,0,0,0,0, 0,0,0,0,0],
-        "I": [0,1,1,1,0, 0,0,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "K": [1,0,0,1,0, 1,0,1,0,0, 1,1,0,0,0, 1,0,1,0,0, 1,0,0,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "L": [1,0,0,0,0, 1,0,0,0,0, 1,0,0,0,0, 1,0,0,0,0, 1,1,1,1,1, 0,0,0,0,0, 0,0,0,0,0],
-        "N": [1,0,0,0,1, 1,1,0,0,1, 1,0,1,0,1, 1,0,0,1,1, 1,0,0,0,1, 0,0,0,0,0, 0,0,0,0,0],
-        "O": [0,1,1,1,0, 1,0,0,0,1, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "P": [1,1,1,1,0, 1,0,0,0,1, 1,1,1,1,0, 1,0,0,0,0, 1,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0],
-        "R": [1,1,1,1,0, 1,0,0,0,1, 1,1,1,1,0, 1,0,0,1,0, 1,0,0,0,1, 0,0,0,0,0, 0,0,0,0,0],
-        "S": [0,1,1,1,1, 1,0,0,0,0, 0,1,1,1,0, 0,0,0,0,1, 1,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "T": [1,1,1,1,1, 0,0,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,0,1,0,0, 0,0,0,0,0, 0,0,0,0,0],
-        "U": [1,0,0,0,1, 1,0,0,0,1, 1,0,0,0,1, 1,0,0,0,1, 0,1,1,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "W": [1,0,0,0,1, 1,0,0,0,1, 1,0,1,0,1, 1,0,1,0,1, 0,1,0,1,0, 0,0,0,0,0, 0,0,0,0,0],
-        "X": [1,0,0,0,1, 0,1,0,1,0, 0,0,1,0,0, 0,1,0,1,0, 1,0,0,0,1, 0,0,0,0,0, 0,0,0,0,0],
-        "/": [0,0,0,0,1, 0,0,0,1,0, 0,0,1,0,0, 0,1,0,0,0, 1,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0],
-        "-": [0,0,0,0,0, 0,0,0,0,0, 1,1,1,1,1, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0],
-        " ": [0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0, 0,0,0,0,0],
-    ]
-
-    var body: some View {
-        let chars = Array(text.uppercased())
-        let px = pixelSize
-        let gap: CGFloat = px
-
-        Canvas { ctx, size in
-            var xOff: CGFloat = 0
-            for ch in chars {
-                guard let glyph = Self.glyphs[ch] else {
-                    xOff += 3 * px
-                    continue
-                }
-                for row in 0..<Self.H {
-                    for col in 0..<Self.W {
-                        if glyph[row * Self.W + col] == 1 {
-                            let rect = CGRect(x: xOff + CGFloat(col) * px, y: CGFloat(row) * px, width: px, height: px)
-                            ctx.fill(Path(rect), with: .color(color))
-                        }
-                    }
-                }
-                xOff += CGFloat(Self.W) * px + gap
-            }
-        }
-        .frame(width: charWidth(chars.count), height: CGFloat(Self.H) * pixelSize)
-    }
-
-    private func charWidth(_ count: Int) -> CGFloat {
-        guard count > 0 else { return 0 }
-        let px = pixelSize
-        return CGFloat(count) * (CGFloat(Self.W) * px + px) - px
-    }
-}
-
 private struct Line: Shape {
     func path(in rect: CGRect) -> Path {
         var p = Path()
         p.move(to: CGPoint(x: rect.minX, y: rect.midY))
         p.addLine(to: CGPoint(x: rect.maxX, y: rect.midY))
         return p
-    }
-}
-
-// MARK: - Shared Helpers
-
-// MARK: - Claude Spark Icon (pixel art)
-
-/// Pixel-art Claude asterisk/spark mark drawn via Canvas.
-struct ClaudeSparkIcon: View {
-    var size: CGFloat = 16
-
-    // Claude brand terracotta
-    private let spark = Color(red: 0.871, green: 0.533, blue: 0.427) // #DE886D
-    private let bright = Color(red: 0.95, green: 0.65, blue: 0.55)
-
-    // 7×7 grid: 0=empty, 1=body, 2=bright highlight
-    private static let grid: [[Int]] = [
-        [0, 0, 0, 2, 0, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0],
-        [0, 0, 1, 1, 1, 0, 0],
-        [1, 1, 1, 2, 1, 1, 1],
-        [0, 0, 1, 1, 1, 0, 0],
-        [0, 0, 0, 1, 0, 0, 0],
-        [0, 0, 0, 2, 0, 0, 0],
-    ]
-
-    var body: some View {
-        Canvas { ctx, sz in
-            let px = sz.width / 7
-            for row in 0..<7 {
-                for col in 0..<7 {
-                    let v = Self.grid[row][col]
-                    guard v != 0 else { continue }
-                    let color: Color = v == 2 ? bright : spark
-                    ctx.fill(
-                        Path(CGRect(x: CGFloat(col) * px, y: CGFloat(row) * px, width: px, height: px)),
-                        with: .color(color)
-                    )
-                }
-            }
-        }
-        .frame(width: size, height: size)
     }
 }
 
@@ -1961,12 +1807,12 @@ private struct SessionTag: View {
 
     var body: some View {
         Text(text)
-            .font(.system(size: 9.5, weight: .medium, design: .monospaced))
+            .font(Design.caption(9.5)).monospacedDigit()
             .foregroundStyle(color)
             .padding(.horizontal, 6)
             .padding(.vertical, 3)
             .background(
-                RoundedRectangle(cornerRadius: 5)
+                RoundedRectangle(cornerRadius: 5, style: .continuous)
                     .fill(color.opacity(0.12))
             )
     }
@@ -1993,7 +1839,7 @@ private struct TypingIndicator: View {
             let startPhase: CGFloat = bright ? -80 : -60
 
             Text(label)
-                .font(.system(size: fontSize, design: .monospaced))
+                .font(Design.caption(fontSize))
                 .foregroundStyle(baseColor.opacity(baseOpacity))
                 .overlay(
                     LinearGradient(
@@ -2011,7 +1857,7 @@ private struct TypingIndicator: View {
                     .offset(x: phase)
                     .mask(
                         Text(label)
-                            .font(.system(size: fontSize, design: .monospaced))
+                            .font(Design.caption(fontSize))
                     )
                 )
                 .onAppear {
@@ -2025,52 +1871,18 @@ private struct TypingIndicator: View {
     }
 }
 
-// MARK: - Mini Agent Icon (8-bit robot head)
+// MARK: - Mini Agent Icon
 
 struct MiniAgentIcon: View {
     let active: Bool
     var size: CGFloat = 12
 
-    // 0=empty, 1=body, 2=eye, 3=antenna tip, 4=highlight, 5=shadow
-    private let grid: [[Int]] = [
-        [0, 0, 0, 3, 0, 0, 0],  // antenna tip (glows)
-        [0, 0, 0, 1, 0, 0, 0],  // antenna stem
-        [0, 4, 1, 1, 1, 5, 0],  // head top
-        [0, 1, 2, 1, 2, 1, 0],  // eyes
-        [0, 1, 1, 1, 1, 1, 0],  // face
-        [0, 5, 1, 0, 1, 5, 0],  // mouth
-        [0, 0, 1, 0, 1, 0, 0],  // legs
-    ]
-
     var body: some View {
-        let base = active ? Color.green : Color.gray
-        let bright = active ? Color(red: 0.5, green: 1.0, blue: 0.5) : Color(white: 0.7)
-        let dark = active ? Color(red: 0.1, green: 0.5, blue: 0.15) : Color(white: 0.35)
-        let eye = active ? Color.white : Color(white: 0.85)
-        let glow = active ? Color(red: 0.4, green: 1.0, blue: 0.4) : Color(white: 0.6)
-
-        Canvas { ctx, sz in
-            let px = sz.width / 7
-            for row in 0..<7 {
-                for col in 0..<7 {
-                    let v = grid[row][col]
-                    guard v != 0 else { continue }
-                    let color: Color = switch v {
-                    case 2: eye
-                    case 3: glow
-                    case 4: bright
-                    case 5: dark
-                    default: base
-                    }
-                    ctx.fill(
-                        Path(CGRect(x: CGFloat(col) * px, y: CGFloat(row) * px, width: px, height: px)),
-                        with: .color(color)
-                    )
-                }
-            }
-        }
-        .frame(width: size, height: size)
-        .shadow(color: active ? .green.opacity(0.4) : .clear, radius: 2)
+        Image(systemName: "circle.fill")
+            .font(.system(size: size * 0.6))
+            .foregroundStyle(active ? Design.statusActive : Color.gray.opacity(0.3))
+            .frame(width: size, height: size)
+            .shadow(color: active ? Design.statusActive.opacity(0.4) : .clear, radius: 2)
     }
 }
 

@@ -96,11 +96,12 @@ class HookServer {
     }
 
     /// Internal tools that are safe to auto-approve without user confirmation.
+    /// ExitPlanMode is intentionally excluded — the user must approve plan
+    /// completion in their terminal, not have it silently auto-approved.
     private static let autoApproveTools: Set<String> = [
         "TaskCreate", "TaskUpdate", "TaskGet", "TaskList", "TaskOutput", "TaskStop",
         "TodoRead", "TodoWrite",
         "EnterPlanMode",
-        "ExitPlanMode",
     ]
 
     private func processRequest(data: Data, connection: NWConnection) {

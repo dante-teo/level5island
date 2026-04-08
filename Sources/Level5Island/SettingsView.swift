@@ -356,7 +356,7 @@ private struct CLIStatusRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                ClaudeSparkIcon(size: 20)
+                ClaudeLogo(size: 20)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(name)
                     if !exists {
@@ -455,8 +455,8 @@ private struct AppearancePreview: View {
     let showDetails: Bool
 
     private var fs: CGFloat { CGFloat(fontSize) }
-    private let green = Color(red: 0.3, green: 0.85, blue: 0.4)
-    private let aiColor = Color(red: 0.85, green: 0.47, blue: 0.34)
+    private let green = Design.statusActive
+    private let aiColor = Design.terracotta
 
     var body: some View {
         HStack(alignment: .center, spacing: 8) {
@@ -609,7 +609,7 @@ private struct MascotRow: View {
                 HStack(spacing: 6) {
                     Text(name)
                         .font(.system(size: 14, weight: .bold, design: .monospaced))
-                    ClaudeSparkIcon(size: 16)
+                    ClaudeLogo(size: 16)
                 }
                 Text(desc)
                     .font(.system(size: 12))
