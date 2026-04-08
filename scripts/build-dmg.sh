@@ -114,11 +114,23 @@ create-dmg \
 # ---------------------------------------------------------------------------
 if [[ -n "${SIGNING_IDENTITY:-}" && -n "${APPLE_ID:-}" && -n "${APPLE_APP_PASSWORD:-}" && -n "${TEAM_ID:-}" ]]; then
     echo "==> Submitting DMG for notarization"
-    xcrun notarytool submit "$OUTPUT_DMG" \
+    SUBMIT_OUTPUT=$(xcrun notarytool submit "$OUTPUT_DMG" \
         --apple-id "$APPLE_ID" \
         --password "$APPLE_APP_PASSWORD" \
         --team-id "$TEAM_ID" \
-        --wait
+        --wait 2>&1)
+    echo "$SUBMIT_OUTPUT"
+
+    # Extract submission ID and fetch log if notarization failed
+    SUBMISSION_ID=$(echo "$SUBMIT_OUTPUT" | grep 'id:' | head -1 | awk '{print $2}')
+    if echo "$SUBMIT_OUTPUT" | grep -q "status: Invalid"; then
+        echo "==> Notarization failed. Fetching log for details:"
+        xcrun notarytool log "$SUBMISSION_ID" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_PASSWORD" \
+            --team-id "$TEAM_ID" 2>&1 || true
+        exit 1
+    fi
 
     echo "==> Stapling notarization ticket"
     xcrun stapler staple "$OUTPUT_DMG"
