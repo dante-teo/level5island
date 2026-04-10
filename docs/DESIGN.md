@@ -28,11 +28,12 @@ Drops down from the notch when clicked/hovered, showing:
 
 ## Mascot System
 
-Each AI tool has a mascot rendered via `PixelCharacterView`:
-- Pixel grids defined as 2D arrays
-- Animation states: idle, working, waiting, celebrating
-- Mascots are rendered at the SwiftUI level, not as image assets
-- `MascotView` wraps `PixelCharacterView` with animation state management
+The mascot (`ClawdView`) is a pixel-art woman character rendered entirely via SwiftUI `Canvas` — no image assets:
+- **Sleep** (`idle`): face bust, closed eyes, breathing puff, floating z's
+- **Work** (`processing`/`running`/`compacting`): squinting eyes, bouncing face, arms typing at keyboard
+- **Alert** (`waitingApproval`/`waitingQuestion`): wide startled eyes, jump, waving arms, `!` mark
+
+Drawing uses an SVG-unit coordinate system scaled to the 27pt display frame. All geometry is defined as `CGRect` fills inside `Canvas` closures. `MascotView` wraps `ClawdView` with speed control via the `\.mascotSpeed` environment key.
 
 ## Color & Status
 
