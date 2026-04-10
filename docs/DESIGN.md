@@ -28,10 +28,10 @@ Drops down from the notch when clicked/hovered, showing:
 
 ## Mascot System
 
-The mascot (`ClawdView`) is a pixel-art woman character rendered entirely via SwiftUI `Canvas` — no image assets:
-- **Sleep** (`idle`): face bust, closed eyes, breathing puff, floating z's
-- **Work** (`processing`/`running`/`compacting`): squinting eyes, bouncing face, arms typing at keyboard
-- **Alert** (`waitingApproval`/`waitingQuestion`): wide startled eyes, jump, waving arms, `!` mark
+The mascot (`ClawdView`) is a pixel-art cat rendered entirely via SwiftUI `Canvas` — no image assets:
+- **Sleep** (`idle`): sploot pose, breathing puff, floating z's
+- **Work** (`processing`/`running`/`compacting`): bouncing torso, arms typing at keyboard, squinted eyes
+- **Alert** (`waitingApproval`/`waitingQuestion`): jump, waving arms, `!` mark, startled eyes
 
 Drawing uses an SVG-unit coordinate system scaled to the 27pt display frame. All geometry is defined as `CGRect` fills inside `Canvas` closures. `MascotView` wraps `ClawdView` with speed control via the `\.mascotSpeed` environment key.
 
