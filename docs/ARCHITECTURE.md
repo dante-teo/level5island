@@ -25,7 +25,7 @@ Pure business logic with no UI or system dependencies beyond Foundation.
 - **ChatMessageTextFormatter** — Formats chat messages for compact display
 
 ### Level5Island (App)
-SwiftUI application layer. Observable state, UI, system integration.
+AppKit-driven app (`main.swift`) with SwiftUI views. Observable state, UI, system integration.
 
 **State & Lifecycle:**
 - **AppState** — `@Observable` main state object. Owns session dictionary (`[String: SessionSnapshot]`), routes events through `reduceEvent()`, executes side effects (sounds, process monitoring), manages session cleanup timers.
