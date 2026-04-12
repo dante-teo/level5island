@@ -31,6 +31,12 @@ final class AppState {
         "UserPromptSubmit", "Stop",
     ]
 
+    /// Tool-execution events that clear stale approval/question UI
+    /// (user approved in the terminal, not the Island).
+    private static let clearsWaitingTool: Set<String> = [
+        "PreToolUse", "PostToolUse", "PostToolUseFailure",
+    ]
+
     private static let permissionDenyResponse = Data(
         #"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny"}}}"#.utf8
     )
@@ -444,6 +450,20 @@ final class AppState {
                 sessions[sessionId]?.status = (event.eventName == "Stop") ? .idle : .processing
                 sessions[sessionId]?.currentTool = nil
                 sessions[sessionId]?.toolDescription = nil
+            }
+            showNextPending()
+        }
+
+        // Tool-execution drain: PreToolUse / PostToolUse for a session that was
+        // waiting means the user approved in the terminal — our pending items are stale.
+        else if wasWaiting, event.agentId == nil,
+                Self.clearsWaitingTool.contains(event.eventName) {
+            drainPermissions(forSession: sessionId)
+            drainQuestions(forSession: sessionId)
+            if sessions[sessionId]?.status.needsAttention == true {
+                sessions[sessionId]?.status = .running
+                sessions[sessionId]?.currentTool = event.toolName
+                sessions[sessionId]?.toolDescription = event.toolDescription
             }
             showNextPending()
         }
