@@ -26,16 +26,14 @@ final class AppState {
         return nil
     }
 
-    /// Events proving a pending permission/question was resolved externally.
-    /// Peer disconnection (bridge death, Ctrl-C) is handled by monitorPeerDisconnect.
+    /// Events that make ALL pending permissions/questions moot (session reset/ended).
     private static let clearsWaitingAll: Set<String> = [
-        "PermissionDenied", "UserPromptSubmit", "Stop",
+        "UserPromptSubmit", "Stop",
     ]
 
-    /// Tool-completion events — only drain the matching tool, not unrelated parallel tools.
-    private static let clearsWaitingMatchingTool: Set<String> = [
-        "PostToolUse", "PostToolUseFailure",
-    ]
+    private static let permissionDenyResponse = Data(
+        #"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny"}}}"#.utf8
+    )
 
     private var maxHistory: Int { SettingsManager.shared.maxToolHistory }
     private var cleanupTimer: Timer?
@@ -436,31 +434,18 @@ final class AppState {
             sessions[sessionId]?.model = model
         }
 
-        // Permission/question was answered externally (e.g. user replied in terminal).
+        // Session-level drain: UserPromptSubmit / Stop mean all pending items are moot.
         // Subagent events (agentId != nil) must not drain the parent's pending items.
-        if wasWaiting, event.agentId == nil {
-            if Self.clearsWaitingAll.contains(event.eventName) {
-                drainPermissions(forSession: sessionId)
-                drainQuestions(forSession: sessionId)
-                if sessions[sessionId]?.status.needsAttention == true {
-                    sessions[sessionId]?.status = (event.eventName == "Stop") ? .idle : .processing
-                    sessions[sessionId]?.currentTool = nil
-                    sessions[sessionId]?.toolDescription = nil
-                }
-                showNextPending()
-            } else if Self.clearsWaitingMatchingTool.contains(event.eventName),
-                      let toolName = event.toolName {
-                drainPermissions(forSession: sessionId, toolName: toolName)
-                drainQuestions(forSession: sessionId, toolName: toolName)
-                if sessions[sessionId]?.status.needsAttention == true,
-                   !permissionQueue.contains(where: { $0.event.sessionId == sessionId }),
-                   !questionQueue.contains(where: { $0.event.sessionId == sessionId }) {
-                    sessions[sessionId]?.status = .processing
-                    sessions[sessionId]?.currentTool = nil
-                    sessions[sessionId]?.toolDescription = nil
-                }
-                showNextPending()
+        if wasWaiting, event.agentId == nil,
+           Self.clearsWaitingAll.contains(event.eventName) {
+            drainPermissions(forSession: sessionId)
+            drainQuestions(forSession: sessionId)
+            if sessions[sessionId]?.status.needsAttention == true {
+                sessions[sessionId]?.status = (event.eventName == "Stop") ? .idle : .processing
+                sessions[sessionId]?.currentTool = nil
+                sessions[sessionId]?.toolDescription = nil
             }
+            showNextPending()
         }
 
         for effect in effects {
@@ -507,7 +492,7 @@ final class AppState {
         }
     }
 
-    func handlePermissionRequest(_ event: HookEvent, continuation: CheckedContinuation<Data, Never>) {
+    func handlePermissionRequest(_ event: HookEvent, continuation: CheckedContinuation<Data, Never>, requestId: UUID) {
         let sessionId = event.sessionId ?? "default"
         if sessions[sessionId] == nil {
             sessions[sessionId] = SessionSnapshot()
@@ -524,7 +509,7 @@ final class AppState {
         sessions[sessionId]?.toolDescription = event.toolDescription
         sessions[sessionId]?.lastActivity = Date()
 
-        let request = PermissionRequest(event: event, continuation: continuation)
+        let request = PermissionRequest(event: event, continuation: continuation, id: requestId)
         permissionQueue.append(request)
 
         // Show UI only if this is the first (or only) queued item
@@ -574,8 +559,7 @@ final class AppState {
     func denyPermission() {
         guard !permissionQueue.isEmpty else { return }
         let pending = permissionQueue.removeFirst()
-        let response = #"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny"}}}"#
-        pending.continuation.resume(returning: Data(response.utf8))
+        pending.continuation.resume(returning: Self.permissionDenyResponse)
         let sessionId = pending.event.sessionId ?? "default"
         sessions[sessionId]?.status = .idle
         sessions[sessionId]?.currentTool = nil
@@ -589,7 +573,7 @@ final class AppState {
         refreshDerivedState()
     }
 
-    func handleQuestion(_ event: HookEvent, continuation: CheckedContinuation<Data, Never>) {
+    func handleQuestion(_ event: HookEvent, continuation: CheckedContinuation<Data, Never>, requestId: UUID) {
         let sessionId = event.sessionId ?? "default"
         if sessions[sessionId] == nil {
             sessions[sessionId] = SessionSnapshot()
@@ -606,7 +590,7 @@ final class AppState {
         sessions[sessionId]?.status = .waitingQuestion
         sessions[sessionId]?.lastActivity = Date()
 
-        let request = QuestionRequest(event: event, question: question, continuation: continuation)
+        let request = QuestionRequest(event: event, question: question, continuation: continuation, id: requestId)
         questionQueue.append(request)
 
         if questionQueue.count == 1 {
@@ -619,7 +603,7 @@ final class AppState {
         refreshDerivedState()
     }
 
-    func handleAskUserQuestion(_ event: HookEvent, continuation: CheckedContinuation<Data, Never>) {
+    func handleAskUserQuestion(_ event: HookEvent, continuation: CheckedContinuation<Data, Never>, requestId: UUID) {
         let sessionId = event.sessionId ?? "default"
         if sessions[sessionId] == nil {
             sessions[sessionId] = SessionSnapshot()
@@ -668,7 +652,7 @@ final class AppState {
         sessions[sessionId]?.status = .waitingQuestion
         sessions[sessionId]?.lastActivity = Date()
 
-        let request = QuestionRequest(event: event, question: payload, continuation: continuation, isFromPermission: true)
+        let request = QuestionRequest(event: event, question: payload, continuation: continuation, isFromPermission: true, id: requestId)
         questionQueue.append(request)
 
         if questionQueue.count == 1 {
@@ -721,7 +705,7 @@ final class AppState {
         let pending = questionQueue.removeFirst()
         let responseData: Data
         if pending.isFromPermission {
-            responseData = Data(#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny"}}}"#.utf8)
+            responseData = Self.permissionDenyResponse
         } else {
             responseData = Data(#"{"hookSpecificOutput":{"hookEventName":"Notification"}}"#.utf8)
         }
@@ -734,26 +718,30 @@ final class AppState {
     }
 
     /// Drain queued permissions for a session, resuming continuations with deny.
-    /// When `toolName` is provided, only drains items matching that tool.
-    private func drainPermissions(forSession sessionId: String, toolName: String? = nil) {
-        let denyResponse = Data(#"{"hookSpecificOutput":{"hookEventName":"PermissionRequest","decision":{"behavior":"deny"}}}"#.utf8)
+    private func drainPermissions(forSession sessionId: String) {
         permissionQueue.removeAll { item in
             guard item.event.sessionId == sessionId else { return false }
-            if let toolName, item.event.toolName != toolName { return false }
-            item.continuation.resume(returning: denyResponse)
+            item.continuation.resume(returning: Self.permissionDenyResponse)
             return true
         }
     }
 
-    /// Called when the bridge socket disconnects — the question/permission was answered externally (e.g. user replied in terminal)
-    func handlePeerDisconnect(sessionId: String) {
-        let hadPending = questionQueue.contains(where: { $0.event.sessionId == sessionId })
-            || permissionQueue.contains(where: { $0.event.sessionId == sessionId })
-        guard hadPending else { return }
-
-        drainQuestions(forSession: sessionId)
-        drainPermissions(forSession: sessionId)
-        if sessions[sessionId]?.status.needsAttention == true {
+    /// Called when a specific bridge socket disconnects — only drains the single request
+    /// that bridge was servicing, not all pending items for the session.
+    func handlePeerDisconnect(sessionId: String, requestId: UUID) {
+        permissionQueue.removeAll { item in
+            guard item.id == requestId else { return false }
+            item.continuation.resume(returning: Self.permissionDenyResponse)
+            return true
+        }
+        questionQueue.removeAll { item in
+            guard item.id == requestId else { return false }
+            item.continuation.resume(returning: Data("{}".utf8))
+            return true
+        }
+        if sessions[sessionId]?.status.needsAttention == true,
+           !permissionQueue.contains(where: { $0.event.sessionId == sessionId }),
+           !questionQueue.contains(where: { $0.event.sessionId == sessionId }) {
             sessions[sessionId]?.status = .processing
             sessions[sessionId]?.currentTool = nil
             sessions[sessionId]?.toolDescription = nil
@@ -778,10 +766,9 @@ final class AppState {
 
     /// Drain queued questions for a session, resuming continuations with empty.
     /// When `toolName` is provided, only drains items matching that tool.
-    private func drainQuestions(forSession sessionId: String, toolName: String? = nil) {
+    private func drainQuestions(forSession sessionId: String) {
         questionQueue.removeAll { item in
             guard item.event.sessionId == sessionId else { return false }
-            if let toolName, item.event.toolName != toolName { return false }
             item.continuation.resume(returning: Data("{}".utf8))
             return true
         }

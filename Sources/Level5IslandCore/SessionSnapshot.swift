@@ -442,6 +442,7 @@ public func reduceEvent(
 }
 
 private func finishTool(sessions: inout [String: SessionSnapshot], sessionId: String) {
+    guard sessions[sessionId]?.status.needsAttention != true else { return }
     if sessions[sessionId]?.status.canTransition(to: .processing) == true {
         sessions[sessionId]?.status = .processing
         sessions[sessionId]?.currentTool = nil
